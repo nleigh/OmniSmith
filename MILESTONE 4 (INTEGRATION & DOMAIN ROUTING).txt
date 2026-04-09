@@ -1,0 +1,106 @@
+MILESTONE 4 (INTEGRATION & DOMAIN ROUTING)
+Context for LLM: You are the Lead C# Engineer on the "OmniRhythm" engine. We have completed Milestone 1 (Core IPlayableSong interface), Domain A (Piano), and Domain B (Guitar/CDLC).
+
+Objective: Wire up the UI to accept both .mid and .psarc files, and route them to their respective parsers without freezing the ImGui render loop.
+
+Please review the detailed requirements for Tickets 4.1 and 4.2 below. Acknowledge these requirements, and then write the C# code to implement them.
+
+Ticket 4.1: File Browser & Input Update
+Goal: Update the application's file ingestion methods to allow .psarc files.
+
+Step 1: The ImGui File Browser
+Locate the ImGui window responsible for file selection (often a custom directory iterator or a wrapper like ImGuiFileDialog).
+
+Update the file filter string/array. It currently likely filters for *.mid and *.midi.
+
+Change it to: [".mid", ".midi", ".psarc"].
+
+Step 2: Drag-and-Drop OS Callbacks
+Locate the windowing backend's drop callback (If using Silk.NET or GLFW, look for the Drop event subscription on the window object).
+
+Update the validation logic in the drop event.
+
+C#
+// Example validation update
+string extension = Path.GetExtension(droppedFilePath).ToLower();
+if (extension != ".mid" && extension != ".midi" && extension != ".psarc") {
+    // Show ImGui error notification: "Unsupported file format."
+    return;
+}
+// Proceed to loading...
+Ticket 4.2: Asynchronous Domain Routing
+Goal: Create a factory that inspects the file, spins up a background thread to parse it, and safely returns it to the main UI thread.
+
+Step 1: UI State Management
+In your main application class (Program.cs or MainWindow.cs), we need to prevent the app from drawing the highway while a song is being parsed.
+
+Add a boolean flag: private bool _isLoading = false;
+
+Add a string: private string _loadingMessage = "";
+
+Step 2: The Song Factory Method
+Create an asynchronous method to handle the routing. This method determines which parser to use based on the extension.
+
+C#
+private async Task LoadSongAsync(string filePath) {
+    _isLoading = true;
+    _loadingMessage = $"Loading {Path.GetFileName(filePath)}...";
+
+    // 1. Clean up existing song and stop audio
+    _currentSong?.Dispose();
+    _currentSong = null;
+
+    string ext = Path.GetExtension(filePath).ToLower();
+
+    try {
+        // 2. Offload the heavy parsing to a background thread
+        _currentSong = await Task.Run(async () => {
+            if (ext == ".mid" || ext == ".midi") {
+                _loadingMessage = "Parsing MIDI...";
+                return new PianoSong(filePath); 
+            } 
+            else if (ext == ".psarc") {
+                _loadingMessage = "Extracting CDLC and decoding audio (this may take a moment)...";
+                var parser = new RocksmithParser();
+                return await parser.ParsePsarcAsync(filePath);
+            }
+            throw new NotSupportedException("Unknown file format.");
+        });
+    }
+    catch (Exception ex) {
+        // Store exception message to show in an ImGui error modal
+        Console.WriteLine($"Failed to load song: {ex.Message}");
+    }
+    finally {
+        _isLoading = false;
+    }
+}
+Step 3: Update the Main Render Loop
+Update your ImGui render frame to check the loading state before trying to call _currentSong.Draw().
+
+C#
+public void RenderFrame(float currentAudioTimeMs) {
+    ImGui.Begin("OmniRhythm Engine");
+    
+    if (_isLoading) {
+        // Draw a loading spinner or text
+        ImGui.SetCursorPosY(ImGui.GetWindowHeight() / 2);
+        ImGui.SetCursorPosX(ImGui.GetWindowWidth() / 2 - 100);
+        ImGui.TextColored(new Vector4(1, 1, 0, 1), _loadingMessage);
+    } 
+    else if (_currentSong != null) {
+        ImDrawListPtr drawList = ImGui.GetWindowDrawList();
+        _currentSong.Update(currentAudioTimeMs);
+        _currentSong.Draw(drawList);
+    } 
+    else {
+        ImGui.Text("Drag and drop a .mid or .psarc file here.");
+    }
+    
+    ImGui.End();
+}
+Definition of Done: 1. The user drags a .mid file into the app -> It loads instantly and shows the Piano renderer.
+2. The user drags a .psarc file into the app -> The ImGui window displays "Extracting CDLC..." for a few seconds (without freezing), and then smoothly transitions into the 3D Guitar Highway renderer.
+
+You are ready to build!
+With all 4 Milestones fully specced out, you have a complete, architecturally sound blueprint for the OmniRhythm engine.

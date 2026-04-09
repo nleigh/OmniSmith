@@ -15,3 +15,17 @@ The system is transitioning to a **Domain-based Strategy Pattern** (using `IPlay
 - **Guitar Domain:** Leverages `Rocksmith2014` libraries and `vgmstream-cli` to parse Rocksmith 2014 CDLC schemas natively in C#. Provides a 3D perspective-projected GUI mirroring standard rhythm games mapping strings to screen depth.
 
 All local agent development tasks and step-by-step blueprints are documented in the `Tickets/` directory.
+
+---
+
+## ⚖️ Legal & Compliance Disclaimer
+
+**OmniSmith is strictly a software engine and visualization framework.** 
+This repository contains solely open-source code and relies on permissively licensed open-source dependencies (e.g., MIT, Apache 2.0). It is designed to act strictly as a parser, renderer, and player for arbitrary data structures (such as MIDI and PSARC schema). 
+
+To ensure strict compliance with international copyright law:
+1. **No Media Hosted:** This repository **does not** and **will never** host, distribute, or link to any copyrighted intellectual property, including `.mid` files, `.psarc` files, custom DLC (CDLC), stems, or proprietary audio layers.
+2. **Bring Your Own Media:** The framework requires the end-user to legally acquire and provide their own input media. The engine acts entirely transparently and offline on the user's provisioned files.
+3. **Open Ecosystem:** Both the origin repositories (`Openthesia` and `Slopsmith`) and all subsequent C# implementations provided herein are purely structural. They decrypt/unpack standard archive schemas utilizing open-source cryptography and parsing libraries solely for the purpose of run-time format shifting and visualization. 
+
+By utilizing OmniSmith, end-users assume all responsibility for ensuring they hold the legal rights or fair-use exemptions for any media they elect to process through the engine.

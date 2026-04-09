@@ -1,4 +1,4 @@
-# Ticket 11.3: Unified "Omni" HUD & Aesthetics
+# Ticket 11.2: Unified "Omni" HUD & Aesthetics
 **Goal**: Finalize the visual identity of the unified engine.
 
 ### Context

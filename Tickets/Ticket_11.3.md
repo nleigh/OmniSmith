@@ -1,4 +1,4 @@
-# Ticket 11.4: Cross-Instrument Playlists
+# Ticket 11.3: Cross-Instrument Playlists
 **Goal**: Unified library management for all media types.
 
 ### Context

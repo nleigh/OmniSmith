@@ -1,7 +1,7 @@
 # OmniSmith
 
-Combination of Slopsmith and Openthesia to create an app to play songs
-My fork of Openthesia: https://github.com/nleigh/Openthesia
+Combination of Slopsmith and OmniSmith to create an app to play songs
+My fork of OmniSmith: https://github.com/nleigh/OmniSmith
 Omnislop: https://github.com/byrongamatos/slopsmith
 
 Just a play project testing capabilities of agent tooling (Hosted + local).

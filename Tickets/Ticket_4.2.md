@@ -4,7 +4,7 @@
 Avoid blocking the UI thread while extracting `.wem` files and parsing deep XML trees from Rocksmith bundles.
 
 ## Instructions
-1. **Create `SongFactory.cs` in `Openthesia/Openthesia/Core`**:
+1. **Create `SongFactory.cs` in `src/OmniSmith/Core`**:
    * `public static async Task<IPlayableSong> LoadSongAsync(string filePath)`
    * Check the extension.
    * If `.mid`, return `new PianoSong(filePath)`. (PianoSong can remain sync for now as DryWetMIDI usually parses quickly).

@@ -4,7 +4,7 @@
 Establish the core data structures that will hold Guitar (Rocksmith) arrangements. We need models that represent Guitar notes, chords, and the main Song container.
 
 ## Instructions
-1. **Create `Openthesia\Openthesia\Domains\Guitar\Models\NoteTechnique.cs`**:
+1. **Create `src\OmniSmith\Domains\Guitar\Models\NoteTechnique.cs`**:
    * Create a `[Flags]` enum `NoteTechnique` containing:
      `None = 0, Bend = 1, Slide = 2, UnpitchedSlide = 4, HammerOn = 8, PullOff = 16, Vibrato = 32, Harmonic = 64, PinchHarmonic = 128, Mute = 256, PalmMute = 512, Tremolo = 1024, Ignore = 2048`.
 2. **Create `GuitarNote.cs`**:

@@ -1,10 +1,10 @@
 # Ticket 4.1: File Browser Update
 
 ## Goal
-Expand Openthesia's OpenFileDialog (and OS drag-and-drop ingestion) to allow `.psarc` files alongside `.mid`.
+Expand OmniSmith's OpenFileDialog (and OS drag-and-drop ingestion) to allow `.psarc` files alongside `.mid`.
 
 ## Instructions
-1. **Update `Openthesia\Openthesia\Core\FileDialogs\OpenFileDialog.cs`**:
+1. **Update `src\OmniSmith\Core\FileDialogs\OpenFileDialog.cs`**:
    * Add `*.psarc` to the allowed extension filters so the Windows dialog displays them.
    * `Filter = "Playable Files (*.mid, *.psarc)|*.mid;*.psarc|All Files (*.*)|*.*"`
 2. **Update `MidiBrowserWindow.cs`**:

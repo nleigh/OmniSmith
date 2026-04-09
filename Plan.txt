@@ -1,13 +1,13 @@
 
-Context: You are an expert C#/.NET Game Engine Developer. Your task is to act as the primary software engineer for "OmniRhythm", a unified C# rhythm game engine. We are merging the capabilities of two open-source projects: "Openthesia" (a C# Piano MIDI visualizer) and "Slopsmith" (a web-based Rocksmith 2014 CDLC player).
+Context: You are an expert C#/.NET Game Engine Developer. Your task is to act as the primary software engineer for "OmniRhythm", a unified C# rhythm game engine. We are merging the capabilities of two open-source projects: "OmniSmith" (a C# Piano MIDI visualizer) and "Slopsmith" (a web-based Rocksmith 2014 CDLC player).
 
-My fork of Openthesia: https://github.com/nleigh/Openthesia
+My fork of OmniSmith: https://github.com/nleigh/OmniSmith
 Omnislop: https://github.com/byrongamatos/slopsmith
 
 
-Goal: Modify the Openthesia C# codebase to support loading, decoding, and playing Rocksmith 2014 .psarc files alongside standard .mid files, using similar approach to slopsmith.
+Goal: Modify the OmniSmith C# codebase to support loading, decoding, and playing Rocksmith 2014 .psarc files alongside standard .mid files, using similar approach to slopsmith.
 
-Port slopsmith into Openthesia to create an omni rhythm game app allowing playing of piano midi or psarc files
+Port slopsmith into OmniSmith to create an omni rhythm game app allowing playing of piano midi or psarc files
 
 Please review the following Technical Specification and Implementation Plan. Acknowledge your understanding of the architecture,
 
@@ -37,7 +37,7 @@ Abstraction Layer: Parsers convert their proprietary note data into a generic Om
 Render Layer: The engine reads the OmniNote array. If the context is Piano, it draws falling bars to 88 keys. If the context is Guitar, it draws 3D notes moving down a 6-string highway.
 
 2. Tech Stack & Dependencies
-Core: C# / .NET (Matching Openthesia's current version).
+Core: C# / .NET (Matching OmniSmith's current version).
 
 CDLC Parsing: Rocksmith2014.NET (pull via NuGet or source). This will handle PSARC decryption, extraction, and XML/SNG parsing.
 
@@ -52,7 +52,7 @@ Instead of forcing everything into one "Omni" class, we will split the app into 
 
 The Shared Core Engine: Manages global state, audio playback, time synchronization, and the ImGui UI.
 
-Domain A (Piano/Openthesia Legacy): Contains the MIDI parser (DryWetMIDI) and the 88-key falling-block renderer.
+Domain A (Piano/OmniSmith Legacy): Contains the MIDI parser (DryWetMIDI) and the 88-key falling-block renderer.
 
 Domain B (Guitar/Slopsmith Port): Contains the PSARC parser (Rocksmith2014.NET) and the 6-string 3D highway renderer.
 
@@ -73,7 +73,7 @@ public interface IPlayableSong {
 public class PianoSong : IPlayableSong {
     public List<PianoNote> Notes { get; set; }
     public void Draw(ImDrawListPtr drawList) {
-        // Openthesia's existing falling block drawing logic goes here
+        // OmniSmith's existing falling block drawing logic goes here
     }
 }
 
@@ -86,7 +86,7 @@ public class GuitarSong : IPlayableSong {
     }
 }
 3. Tech Stack Additions
-Audio Decoder: vgmstream-cli (to convert Rocksmith .wem audio to standard .wav/.ogg so Openthesia's NAudio implementation can play it).
+Audio Decoder: vgmstream-cli (to convert Rocksmith .wem audio to standard .wav/.ogg so OmniSmith's NAudio implementation can play it).
 
 CDLC Parser: Rocksmith2014.NET (C# library to read .psarc and XML).
 
@@ -94,9 +94,9 @@ UI: Keep existing ImGui.NET.
 
 IMPLEMENTATION PLAN: MILESTONES & TICKETS
 Milestone 1: Core Engine Refactoring
-Goal: Abstract Openthesia's tight MIDI coupling so it can load any IPlayableSong.
+Goal: Abstract OmniSmith's tight MIDI coupling so it can load any IPlayableSong.
 
-Ticket 1.1: Interface Extraction. Create the IPlayableSong interface. Move Openthesia's existing MIDI Note rendering logic out of the main game loop and into a new PianoSong : IPlayableSong class.
+Ticket 1.1: Interface Extraction. Create the IPlayableSong interface. Move OmniSmith's existing MIDI Note rendering logic out of the main game loop and into a new PianoSong : IPlayableSong class.
 
 Ticket 1.2: State Management. Update the main game loop (Program.cs or main window). It should hold a reference to IPlayableSong CurrentSong. In the render loop, it simply calls CurrentSong.Update(time) and CurrentSong.Draw(drawList). Verify standard MIDI playback still works perfectly.
 
@@ -107,7 +107,7 @@ Ticket 2.1: Guitar Data Structures. Create GuitarNote (Start, Duration, String, 
 
 Ticket 2.2: The Parser Service. Integrate Rocksmith2014.NET. Create a RocksmithParser class that reads a .psarc, parses the XML into your GuitarNote objects, and returns a fully populated GuitarSong : IPlayableSong.
 
-Ticket 2.3: Audio Extraction. Add logic to the RocksmithParser to extract the song_audio.wem file to a Temp folder and use System.Diagnostics.Process to run vgmstream-cli to convert it to .wav. Pass this .wav path to Openthesia's audio player.
+Ticket 2.3: Audio Extraction. Add logic to the RocksmithParser to extract the song_audio.wem file to a Temp folder and use System.Diagnostics.Process to run vgmstream-cli to convert it to .wav. Pass this .wav path to OmniSmith's audio player.
 
 Milestone 3: The Guitar Renderer
 Goal: Port Slopsmith's visual highway into the GuitarSong.Draw method using ImGui.
@@ -121,6 +121,6 @@ Ticket 3.3: Note Drawing. Iterate through the GuitarNote array and draw them on 
 Milestone 4: Integration
 Goal: Bring it all together in the UI.
 
-Ticket 4.1: File Browser Update. Update Openthesia's ImGui file browser to accept both .mid and .psarc files.
+Ticket 4.1: File Browser Update. Update OmniSmith's ImGui file browser to accept both .mid and .psarc files.
 
 Ticket 4.2: Domain Routing. When a file is selected, check the extension. If .mid, instantiate a PianoSong via DryWetMIDI. If .psarc, instantiate a GuitarSong via RocksmithParser, and assign it to CurrentSong.

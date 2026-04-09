@@ -70,7 +70,7 @@ More notes
 MILESTONE 3 (THE GUITAR RENDERER)
 Context for LLM: You are the Lead C# Engineer on the "OmniRhythm" engine. We are implementing the GuitarSong.Draw(ImDrawListPtr drawList) method for Domain B. Our UI framework is ImGui.NET.
 
-Objective: You must build a 2.5D perspective renderer. Instead of Openthesia's 2D falling blocks, Rocksmith uses a 3D highway. You will project 3D world coordinates (String, Time) into 2D screen coordinates using a perspective projection matrix (or standard scaling algebra), and draw the shapes using ImGui's raw drawing primitives (AddLine, AddQuadFilled, AddRectFilled).
+Objective: You must build a 2.5D perspective renderer. Instead of OmniSmith's 2D falling blocks, Rocksmith uses a 3D highway. You will project 3D world coordinates (String, Time) into 2D screen coordinates using a perspective projection matrix (or standard scaling algebra), and draw the shapes using ImGui's raw drawing primitives (AddLine, AddQuadFilled, AddRectFilled).
 
 Please review the detailed requirements for Tickets 3.1, 3.2, and 3.3 below. Acknowledge these requirements, and then write the C# code to implement them.
 

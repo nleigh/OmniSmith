@@ -1,6 +1,6 @@
 # OmniRhythm Agent Implementation Guide
 
-Welcome context! You are an AI Agent tasked with building the OmniRhythm engine (merging Openthesia and Slopsmith). 
+Welcome context! You are an AI Agent tasked with building the OmniRhythm engine (merging OmniSmith and Slopsmith). 
 You are working autonomously, step by step, picking up tasks from `Task Status.txt` and the `implementation_plan.md` (or Milestone blueprints). 
 
 ## Your Workflow:

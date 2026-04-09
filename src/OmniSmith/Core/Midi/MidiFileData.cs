@@ -1,0 +1,21 @@
+using Melanchall.DryWetMidi.Core;
+using Melanchall.DryWetMidi.Interaction;
+
+namespace OmniSmith.Core.Midi;
+
+public static class MidiFileData
+{
+    public static MidiFile MidiFile;
+    public static string FileName = "No midi file opened";
+    public static string FilePath = string.Empty;
+    public static TempoMap TempoMap;
+    public static IEnumerable<Note> Notes;
+
+    public static void ReleaseMidiFile()
+    {
+        MidiFile = null;
+        FileName = "No midi file opened";
+        FilePath = string.Empty;
+        TempoMap = null;
+    }
+}

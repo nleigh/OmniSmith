@@ -1,0 +1,75 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net6.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+    <ApplicationIcon>logo.ico</ApplicationIcon>
+    <Platforms>x64</Platforms>
+    <Platform>x64</Platform>
+    <PlatformTarget>x64</PlatformTarget>
+    <Configurations>Debug;Release</Configurations>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'" />
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" />
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'" />
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" />
+
+  <ItemGroup>
+    <None Remove="Core\Resources\ckey.png" />
+    <None Remove="Core\Resources\csharp.png" />
+    <None Remove="Core\Resources\Font\Inter.ttf" />
+    <None Remove="Core\Resources\Font\Roboto-Regular.ttf" />
+    <None Remove="Core\Resources\imgui-frag.hlsl.bytes" />
+    <None Remove="Core\Resources\imgui-vertex.hlsl.bytes" />
+    <None Remove="Core\Resources\Keys\wsharp.png" />
+    <None Remove="Core\Resources\logoimg.png" />
+    <None Remove="Core\Resources\SustainPedalOff.png" />
+    <None Remove="Core\Resources\SustainPedalOn.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="logo.ico" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Core\Resources\Keys\white.png" />
+    <EmbeddedResource Include="Core\Resources\Keys\black.png" />
+    <EmbeddedResource Include="Core\Resources\Font\Inter.ttf" />
+    <EmbeddedResource Include="Core\Resources\Font\Roboto-Regular.ttf" />
+    <EmbeddedResource Include="Core\Resources\imgui-frag.hlsl.bytes" />
+    <EmbeddedResource Include="Core\Resources\imgui-vertex.hlsl.bytes" />
+    <EmbeddedResource Include="Core\Resources\Keys\wsharp.png" />
+    <EmbeddedResource Include="Core\Resources\logoimg.png" />
+    <EmbeddedResource Include="Core\Resources\SustainPedalOff.png" />
+    <EmbeddedResource Include="Core\Resources\SustainPedalOn.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ImGui.NET" Version="1.90.1.1" />
+    <PackageReference Include="Melanchall.DryWetMidi" Version="8.0.1" />
+    <PackageReference Include="MeltySynth" Version="2.4.1" />
+    <PackageReference Include="NAudio" Version="2.2.1" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="ScreenRecorderLib" Version="6.5.1" />
+    <PackageReference Include="Syroot.Windows.IO.KnownFolders" Version="1.3.0" />
+    <PackageReference Include="Vanara.PInvoke.User32" Version="3.4.17" />
+    <PackageReference Include="Veldrid" Version="4.9.0" />
+    <PackageReference Include="Veldrid.ImageSharp" Version="4.9.0" />
+    <PackageReference Include="Veldrid.StartupUtilities" Version="4.9.0" />
+    <PackageReference Include="VST.NET2-Host" Version="2.1.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="Core\Resources\cimgui.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>

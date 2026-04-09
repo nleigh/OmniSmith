@@ -1,19 +1,18 @@
-# Ticket 11.3: Unified "Omni" HUD & Aesthetics
-**Goal**: Finalize the visual identity of the unified engine.
+# Ticket 11.4: Cross-Instrument Playlists
+**Goal**: Unified library management for all media types.
 
 ### Context
-To make OmniRhythm feel like a single cohesive product, we need a shared "HUD" (Heads-Up Display) theme.
+Players often want to switch between guitar and piano without diving back into the OS file explorer. A unified playlist system solves this.
 
 ### Implementation Steps
-1. **Shared HUD Layer**:
-   - Create `[NEW] Ui/Components/SharedHud.cs`.
-   - Implement common UI components: 
-     - **Accuracy Streak**: A neon counter that grows/pulses as the player hits consecutive notes.
-     - **Progress Bar**: A top-mounted bar showing song completion.
-2. **Standardized Palettes**:
-   - Define a global "OmniPalette" (Neon Cyan/Magenta/Green) used for all feedback (Perfect/Good/Miss).
-3. **Application**:
-   - Ensure these HUD elements are drawn over *both* the Piano domain and the Guitar domain.
+1. **Playlist Metadata**:
+   - Update `LibraryDatabase` to support a `Playlists` table mapping a playlist name to a list of file paths.
+2. **Media Agnostic Loading**:
+   - In the `PlaylistController`, iterate through the list. 
+   - When the next item is triggered, call the `Async Domain Routing` logic from Milestone 4.
+3. **UI Integration**:
+   - Add a "Add to Playlist" button in the `MidiBrowserWindow`.
+   - Create a `[NEW] Ui/Windows/PlaylistWindow.cs` to manage and launch these sets.
 
 ### Definition of Done
-Regardless of whether a user is playing a MIDI file or a PSARC file, the scoring feedback, counters, and overall UI aesthetic are perfectly consistent.
+The user can create a playlist containing both `.mid` and `.psarc` files. The engine transitions perfectly between instruments, loading the correct domain and renderer for each song in the sequence.

@@ -1,17 +1,19 @@
-# Ticket 11.2: Performance Theatre (Replay System)
-**Goal**: Record and playback instrument performances.
+# Ticket 11.3: Unified "Omni" HUD & Aesthetics
+**Goal**: Finalize the visual identity of the unified engine.
 
 ### Context
-Users want to review their practice sessions. We will capture the raw event data to allow for "Perfect Quality" replays that can be viewed from any angle.
+To make OmniRhythm feel like a single cohesive product, we need a shared "HUD" (Heads-Up Display) theme.
 
 ### Implementation Steps
-1. **Event Capture**:
-   - Create `[NEW] Core/Replays/ReplayManager.cs`.
-   - Record every `NoteOn`, `NoteOff`, and `ControlChange` event from the user's instrument alongside a high-resolution timestamp.
-2. **Persistence**:
-   - Save these events to a `.omni_replay` file (JSON or binary).
-3. **Playback Engine**:
-   - When a replay is loaded, feed these recorded events back into the `IPlayableSong` renderer and the `SoundFontEngine`.
+1. **Shared HUD Layer**:
+   - Create `[NEW] Ui/Components/SharedHud.cs`.
+   - Implement common UI components: 
+     - **Accuracy Streak**: A neon counter that grows/pulses as the player hits consecutive notes.
+     - **Progress Bar**: A top-mounted bar showing song completion.
+2. **Standardized Palettes**:
+   - Define a global "OmniPalette" (Neon Cyan/Magenta/Green) used for all feedback (Perfect/Good/Miss).
+3. **Application**:
+   - Ensure these HUD elements are drawn over *both* the Piano domain and the Guitar domain.
 
 ### Definition of Done
-The user can "Record" a session. After finishing, they can "Load" the replay to watch their performance exactly as it happened, including the ability to change camera angles or enter VR mode during the replay.
+Regardless of whether a user is playing a MIDI file or a PSARC file, the scoring feedback, counters, and overall UI aesthetic are perfectly consistent.

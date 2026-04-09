@@ -56,6 +56,5 @@ Always keep your context isolated to the specific ticket.
 
 **Milestone 11 (Polish)**
 - [ ] Ticket 11.1: Guitar "Waterfall" Sight-Reading Mode
-- [ ] Ticket 11.2: Performance Theatre (Replay System)
-- [ ] Ticket 11.3: Unified "Omni" HUD & Aesthetics
-- [ ] Ticket 11.4: Cross-Instrument Playlists
+- [ ] Ticket 11.2: Unified "Omni" HUD & Aesthetics
+- [ ] Ticket 11.3: Cross-Instrument Playlists

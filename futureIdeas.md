@@ -47,9 +47,5 @@ Since OmniRhythm is already authored in C# (.NET 6.0), the core parsing logic (`
 -   Use a Quest 3 or Vision Pro to project the "Falling Blocks" directly onto the keys of a physical piano.
 -   **Hand Tracking**: Highlight the user's fingers in neon colors when they are correctly positioned over the next upcoming notes.
 
-### 🌐 Global Competitive Leaderboards
--   Implement a centralized server to track high scores across both instruments.
--   **Verification**: Include "Anti-Cheat" logic that analyzes the timing of MIDI events to ensure the performance wasn't automated.
-
 ### ⚡ Real-time VST Integration
 -   Instead of simple Soundfonts, host full **VST3** plugins (e.g., Kontakt, Serum) directly inside the engine for professional, studio-quality sound during practice.

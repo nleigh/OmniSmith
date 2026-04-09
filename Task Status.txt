@@ -1,38 +1,61 @@
-# OmniRhythm Development Task Tracker
+# OmniRhythm Agent Tracking System
 
-## Milestone 1: Core Engine Refactoring
+Welcome! If you are a local agent picking up work, start from the top of the uncompleted ticket list. 
+When you begin a ticket, move its status to `[IN PROGRESS]`, and when done, move to `[DONE]` and commit your work.
+Always keep your context isolated to the specific ticket.
+
+## Master Queue
+
+**Milestone 1 (Core)**
 - [ ] Ticket 1.1: Interface Extraction
-      * Define `IPlayableSong.cs` in `Core/Interfaces/`.
-      * Encapsulate `MidiFileData` and `MidiPlayer` setup/teardown into `PianoSong.cs` (`Domains/Piano/`).
-      * Move `PianoRenderer.RenderKeyboard()`, `ScreenCanvas.DrawPlaybackNotes()`, and input loop logic to `PianoSong.Draw()` and `.Update()`.
-- [ ] Ticket 1.2: State Management & Main Loop
-      * Replace raw MIDI global state with `public static IPlayableSong CurrentSong` in the main loop or `Application.cs`/`FileDialogs`.
-      * Refactor `MidiPlaybackWindow.cs` to call `CurrentSong.Draw()` instead of hardcoded piano renderers.
-      * Verify compilation and basic MIDI playback regression testing.
+- [ ] Ticket 1.2: State Management
 
-## Milestone 2: The Guitar Domain & Data Structures
-- [ ] Ticket 2.1: Domain Models
-      * Create `GuitarNote.cs`, `GuitarChord.cs`, `NoteTechnique.cs` (Flags enum) in `Domains/Guitar/Models/`.
-      * Setup `GuitarSong.cs: IPlayableSong` container class.
-- [ ] Ticket 2.2: Rocksmith CDLC Parsing
-      * Implement `RocksmithParser.cs`. Integrate XML parsing (custom or via `Rocksmith2014.XML` packages).
-      * Flatten arrangements to Level difficulty and construct `GuitarNote` collections.
-- [ ] Ticket 2.3: Audio Extraction Pipeline
-      * Use `System.Diagnostics.Process` to run `vgmstream-cli` against `_wem` files extracted from PSARC.
-      * Integrate NAudio implementation into `GuitarSong` to play the decoded `.wav` file accurately.
+**Milestone 2 (Guitar domain)**
+- [ ] Ticket 2.1: Guitar Data Structures
+- [ ] Ticket 2.2: The Parser Service
+- [ ] Ticket 2.3: Audio Extraction
 
-## Milestone 3: The Guitar Renderer
+**Milestone 3 (Guitar render)**
 - [ ] Ticket 3.1: ImGui 3D Projection Utility
-      * Implement `ProjectToScreen(int stringIndex, float timeOffset, float yOffset)` inside `GuitarSong.cs`.
 - [ ] Ticket 3.2: Base Highway Geometry
-      * Render static elements of the guitar track (Fretboard width, string lines, colors, and HitLine).
 - [ ] Ticket 3.3: Note & Sustain Rendering
-      * Draw moving elements. Add notes using `AddRectFilled`. Map Time to Z depth, and use perspective math for sizes.
-      * Optimize iteration logic (visible range culling).
+- [ ] Ticket 3.4: MIDI-Synthesized Guitar Mode
+- [ ] Ticket 3.5: Guitar Finger Tracking & Technique Labels
 
-## Milestone 4: Integration
+**Milestone 4 (Integration)**
 - [ ] Ticket 4.1: File Browser Update
-      * Expand file ingestion filtering to allow `.psarc`. Let `SongFactory` spin up appropriately.
-- [ ] Ticket 4.2: Asynchronous Song Factory
-      * Add async loading flag with ImGui loading message to prevent freezing.
-      * Pass `.mid` paths to `new PianoSong()` and `.psarc` files to `await RocksmithParser.LoadAsync()`.
+- [ ] Ticket 4.2: Asynchronous Domain Routing
+
+**Milestone 5 (SQLite)**
+- [ ] Ticket 5.1: SQLite Database Setup
+- [ ] Ticket 5.2: Background Scanner & ImGui Integration
+
+**Milestone 6 (Plugins)**
+- [ ] Ticket 6.1: Plugin Architecture & Web Capabilities
+
+**Milestone 7 (Advanced)**
+- [ ] Ticket 7.1: Multi-Instrument Audio Mixer
+- [ ] Ticket 7.2: Visual Effects (VFX) & Shaders
+- [ ] Ticket 7.3: Engine Hardening & Refactors
+
+**Milestone 8 (Learning)**
+- [ ] Ticket 8.1: Riff Repeater (Loop & Level Up)
+- [ ] Ticket 8.2: Chord Dictionary Overlay
+- [ ] Ticket 8.3: Piano Dynamic Difficulty (DDC)
+- [ ] Ticket 8.4: Piano Tone Automation
+- [ ] Ticket 8.5: Piano Session Mode (Backing Band)
+
+**Milestone 9 (Performance & Social)**
+- [ ] Ticket 9.1: 240FPS High-Refresh Mode
+- [ ] Ticket 9.2: Multi-Instrument Jam Mode
+- [ ] Ticket 9.3: Audio-Reactive Environmental Shaders
+
+**Milestone 10 (Platform)**
+- [ ] Ticket 10.1: VR Support (First Person Camera)
+- [ ] Ticket 10.2: Full Cross-Platform Portability
+
+**Milestone 11 (Polish)**
+- [ ] Ticket 11.1: Guitar "Waterfall" Sight-Reading Mode
+- [ ] Ticket 11.2: Performance Theatre (Replay System)
+- [ ] Ticket 11.3: Unified "Omni" HUD & Aesthetics
+- [ ] Ticket 11.4: Cross-Instrument Playlists

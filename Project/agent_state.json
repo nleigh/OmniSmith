@@ -6,13 +6,13 @@
       "id": 1,
       "title": "Core Engine Refactoring",
       "tickets": [
-        { "id": "1.1", "status": "incomplete", "file_reference": "Tickets/Ticket_1.1.md" },
+        { "id": "1.1", "status": "done", "file_reference": "Tickets/Ticket_1.1.md" },
         { "id": "1.2", "status": "incomplete", "file_reference": "Tickets/Ticket_1.2.md" }
       ]
     },
     {
       "id": 2,
-      "title": "The Guitar Domain & CDLC Parsing",
+      "title": "Audio Backend & ManagedBass Integration",
       "tickets": [
         { "id": "2.1", "status": "incomplete", "file_reference": "Tickets/Ticket_2.1.md" },
         { "id": "2.2", "status": "incomplete", "file_reference": "Tickets/Ticket_2.2.md" },
@@ -21,19 +21,82 @@
     },
     {
       "id": 3,
-      "title": "The Guitar Renderer",
+      "title": "Guitar Rendering",
       "tickets": [
         { "id": "3.1", "status": "incomplete", "file_reference": "Tickets/Ticket_3.1.md" },
         { "id": "3.2", "status": "incomplete", "file_reference": "Tickets/Ticket_3.2.md" },
-        { "id": "3.3", "status": "incomplete", "file_reference": "Tickets/Ticket_3.3.md" }
+        { "id": "3.3", "status": "incomplete", "file_reference": "Tickets/Ticket_3.3.md" },
+        { "id": "3.4", "status": "incomplete", "file_reference": "Tickets/Ticket_3.4.md" },
+        { "id": "3.5", "status": "incomplete", "file_reference": "Tickets/Ticket_3.5.md" }
       ]
     },
     {
       "id": 4,
-      "title": "Integration & Domain Routing",
+      "title": "Integration",
       "tickets": [
         { "id": "4.1", "status": "incomplete", "file_reference": "Tickets/Ticket_4.1.md" },
         { "id": "4.2", "status": "incomplete", "file_reference": "Tickets/Ticket_4.2.md" }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "SQLite",
+      "tickets": [
+        { "id": "5.1", "status": "incomplete", "file_reference": "Tickets/Ticket_5.1.md" },
+        { "id": "5.2", "status": "incomplete", "file_reference": "Tickets/Ticket_5.2.md" }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Plugins",
+      "tickets": [
+        { "id": "6.1", "status": "incomplete", "file_reference": "Tickets/Ticket_6.1.md" }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "Advanced",
+      "tickets": [
+        { "id": "7.1", "status": "incomplete", "file_reference": "Tickets/Ticket_7.1.md" },
+        { "id": "7.2", "status": "incomplete", "file_reference": "Tickets/Ticket_7.2.md" },
+        { "id": "7.3", "status": "incomplete", "file_reference": "Tickets/Ticket_7.3.md" }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "Learning",
+      "tickets": [
+        { "id": "8.1", "status": "incomplete", "file_reference": "Tickets/Ticket_8.1.md" },
+        { "id": "8.2", "status": "incomplete", "file_reference": "Tickets/Ticket_8.2.md" },
+        { "id": "8.3", "status": "incomplete", "file_reference": "Tickets/Ticket_8.3.md" },
+        { "id": "8.4", "status": "incomplete", "file_reference": "Tickets/Ticket_8.4.md" },
+        { "id": "8.5", "status": "incomplete", "file_reference": "Tickets/Ticket_8.5.md" }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "Performance & Social",
+      "tickets": [
+        { "id": "9.1", "status": "incomplete", "file_reference": "Tickets/Ticket_9.1.md" },
+        { "id": "9.2", "status": "incomplete", "file_reference": "Tickets/Ticket_9.2.md" },
+        { "id": "9.3", "status": "incomplete", "file_reference": "Tickets/Ticket_9.3.md" }
+      ]
+    },
+    {
+      "id": 10,
+      "title": "Platform",
+      "tickets": [
+        { "id": "10.1", "status": "incomplete", "file_reference": "Tickets/Ticket_10.1.md" },
+        { "id": "10.2", "status": "incomplete", "file_reference": "Tickets/Ticket_10.2.md" }
+      ]
+    },
+    {
+      "id": 11,
+      "title": "Polish",
+      "tickets": [
+        { "id": "11.1", "status": "incomplete", "file_reference": "Tickets/Ticket_11.1.md" },
+        { "id": "11.2", "status": "incomplete", "file_reference": "Tickets/Ticket_11.2.md" },
+        { "id": "11.3", "status": "incomplete", "file_reference": "Tickets/Ticket_11.3.md" }
       ]
     }
   ]

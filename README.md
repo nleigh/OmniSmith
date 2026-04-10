@@ -23,7 +23,15 @@ dotnet publish src/OmniSmith/OmniSmith.csproj -c Release --self-contained true -
 
 ## 🏗️ Project Design & Plan
 
-The system is transitioning to a **Domain-based Strategy Pattern** (using `IPlayableSong`):
+The system is transitioning to a **Domain-based Strategy Pattern** (using `IPlayableSong`). 
+
+Detailed documentation and tracking have been moved to the `Project/` directory:
+- **Roadmap & Tasks**: [Project/Roadmap/](file:///Project/Roadmap/) (Includes Milestones and Task Status)
+- **Technical Specs**: [Project/Spec/](file:///Project/Spec/) (Includes TechSpec and Future Ideas)
+- **Execution**: All step-by-step blueprints are in the [Tickets/](file:///Tickets/) directory.
+- **State**: Persistent agent state is managed in [Project/agent_state.json](file:///Project/agent_state.json).
+
+### Implementation Core
 - **Core Engine:** Manages global state, application loop, and handles window rendering independently of the music file type. Includes an embedded **SQLite Database** (`Microsoft.Data.Sqlite`) to seamlessly index and paginate thousands of files.
 - **Piano Domain:** Evaluates traditional `.mid` files via DryWetMIDI, rendering falling 2D blocks and interacting with plugins.
 - **Guitar Domain:** Leverages `Rocksmith2014` libraries and `vgmstream-cli` to parse Rocksmith 2014 CDLC schemas natively in C#. Provides a 3D perspective-projected GUI mirroring standard rhythm games mapping strings to screen depth.

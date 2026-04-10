@@ -13,12 +13,12 @@ To build and run the application locally, you must have the **.NET 6.0 SDK** ins
 
 **Quick Run (Debugging):**
 ```bash
-dotnet run --project Openthesia/Openthesia.csproj
+dotnet run --project src/OmniSmith/OmniSmith.csproj
 ```
 
 **Build Release Binary:**
 ```bash
-dotnet publish Openthesia/Openthesia.csproj -c Release --self-contained true -p:PublishSingleFile=true
+dotnet publish src/OmniSmith/OmniSmith.csproj -c Release --self-contained true -p:PublishSingleFile=true
 ```
 
 ## 🏗️ Project Design & Plan

@@ -7,7 +7,7 @@ The OmniRhythm Engine (OmniSmith) is a unified C# rhythm game platform. It merge
 - **Language / Runtime:** C# 10.0 / .NET 6.0
 - **Graphics Backend:** Veldrid (Polymorphic wrapper over DirectX/Vulkan/OpenGL)
 - **UI Framework:** Dear ImGui (ImGui.NET)
-- **Audio Engine:** NAudio (Playback, WEM decoding)
+- **Audio Engine:** ManagedBass (Primary backend for playback, mixing, FFT, and time-stretch)
 - **MIDI Parsing:** Melanchall DryWetMIDI
 - **CDLC Parsing:** System.Xml.Linq (Handling Rocksmith2014 unencrypted `_lead.xml` definitions)
 

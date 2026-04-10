@@ -2,7 +2,7 @@
 **Goal**: Finalize the architectural cleanup to ensure long-term maintainability.
 
 ### Context
-`ScreenCanvas.cs` iscurrently a "God Class" with over 70,000 lines of code in the original Openthesia fork. This is a massive barrier to stability. We must break it down.
+`ScreenCanvas.cs` is currently a "God Class" with over 70,000 lines of code in the original Openthesia fork. This is a massive barrier to stability. We must break it down.
 
 ### Implementation Steps
 1. **The Gigantic Class Purge**:

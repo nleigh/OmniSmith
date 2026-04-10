@@ -17,7 +17,7 @@ OmniSmith is a customizable MIDI visualization software (built in C#) heavily in
 - **Plugin support**: [VST.NET](https://github.com/obiwanjacobi/vst.net) (Vst2 plugins)
 
 ## 📁 Repository Structure
-The project code sits mainly within the `OmniSmith` directory:
+The project code sits mainly within the `src/OmniSmith` directory:
 
 - `OmniSmith/Program.cs`: The entry point for the application. Sets up Veldrid, ImGui scaffolding, and manages the main application loop.
 - `OmniSmith/Core/`: The brain of the application.

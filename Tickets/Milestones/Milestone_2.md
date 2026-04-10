@@ -6,7 +6,7 @@ With the Openthesia engine refactored into `OmniSmith`, we introduce the **Guita
 ### 🎯 Key Objectives
 - **Data Structures:** Implement Rocksmith models (`GuitarNote`, `GuitarChord`, `NoteTechnique` flags).
 - **XML Parsing:** Deserialize `.psarc` internal metadata (`_lead.xml`) to extract frets, sustains, and beats.
-- **Audio Extraction:** Convert Wwise `.wem` audio payloads into generic formats (WAV) utilizing `vgmstream-cli` for NAudio playback.
+- **Audio Extraction:** Convert Wwise `.wem` audio payloads into generic formats (WAV) utilizing `vgmstream-cli` for playback via NAudio (with planned migration to ManagedBass).
 
 ### 📝 Tickets
 All detailed logic, API usages, and structures live in the `Tickets/` directory:

@@ -1,38 +1,23 @@
-# Ticket 1.2: State Management & Main Loop
+# Ticket 1.2: Unit Testing Infrastructure
+**Goal**: Establish a robust unit testing environment for the OmniRhythm engine.
 
-## Goal
-Replace the global static access to MIDI playback in the primary Application loop, and update the UI window to render whatever is currently in `CurrentSong`.
+### Context
+With the introduction of multiple domains (Piano, Guitar), architectural stability is paramount. Unit testing allows us to verify core logic (math, parsing, state) without launching the full ImGui application.
 
-## Instructions for Agent
-1. **Update `src\OmniSmith\Core\Application.cs`**:
-   * Add a property: `public static OmniSmith.Core.Interfaces.IPlayableSong CurrentSong { get; set; }`
-   * In `OnUpdate()`, when `MidiPlayer.ShouldAdvanceQueue` triggers a `nextFile` load:
-     Replace `MidiFileHandler.LoadMidiFile(nextFile);` with:
-     ```csharp
-     Application.CurrentSong?.Dispose();
-     Application.CurrentSong = new OmniSmith.Domains.Piano.PianoSong(nextFile);
-     ```
+### Implementation Steps
+1. **Project Setup**:
+   - Create `src/OmniSmith.Tests` using the `xunit` template.
+   - Reference `OmniSmith.csproj`.
+   - Add `FluentAssertions` and `Moq` for expressive testing and interface mocking.
+2. **Global Usings**:
+   - Configure `Usings.cs` in the test project to include standard testing namespaces.
+3. **Core Interface Tests**:
+   - Create `Core/DomainTests.cs`.
+   - Implement tests for the `IPlayableSong` interface lifecycle (ensure `Dispose` is called, default property values are handled).
+4. **CI Integration readiness**:
+   - Ensure `dotnet test` executes successfully from the solution root.
 
-2. **Update `src\OmniSmith\Ui\Windows\MidiBrowserWindow.cs`**:
-   * Around line 62, replacing `MidiFileHandler.LoadMidiFile(file);` with:
-     ```csharp
-     Application.CurrentSong?.Dispose();
-     Application.CurrentSong = new OmniSmith.Domains.Piano.PianoSong(file);
-     ```
-
-3. **Update `src\OmniSmith\Ui\Windows\MidiPlaybackWindow.cs`**:
-   * Completely clear out the `OnImGui` function and replace it with:
-    ```csharp
-    protected override void OnImGui()
-    {
-        if (Application.CurrentSong != null)
-        {
-            Application.CurrentSong.Update(0f);
-            Application.CurrentSong.Draw(ImGui.GetWindowDrawList());
-        }
-    }
-    ```
-   * *Note: Any lingering scoring logic (like `RenderScoringHeatmap`) that was originally in `MidiPlaybackWindow.cs` should be relocated inside `PianoSong.cs` so it only shows up during piano sessions.*
-
-4. **Verify**:
-   Run `dotnet run`. The application should compile and MIDI files should still open, render the falling blocks, keyboard, and play sounds identically to how they did before.
+### Definition of Done
+- `src/OmniSmith.Tests` is part of the solution.
+- `dotnet test` runs and passes on the local environment.
+- At least one unit test exists for the core interface layer.

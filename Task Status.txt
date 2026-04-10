@@ -6,55 +6,55 @@ Always keep your context isolated to the specific ticket.
 
 ## Master Queue
 
-**Milestone 1 (Core)**
-- [ ] Ticket 1.1: Interface Extraction
-- [ ] Ticket 1.2: State Management
+**Milestone 1: Core Engine Refactoring**
+- [x] Ticket 1.1: Interface Extraction & Core Refactor (PR #1 review fixes applied)
+- [ ] Ticket 1.2: Unit Testing Infrastructure & Core Tests
 
-**Milestone 2 (Guitar domain)**
+**Milestone 2: Audio Backend & ManagedBass Integration**
 - [ ] Ticket 2.1: Guitar Data Structures
 - [ ] Ticket 2.2: The Parser Service
 - [ ] Ticket 2.3: Audio Extraction
 
-**Milestone 3 (Guitar render)**
+**Milestone 3: Guitar rendering**
 - [ ] Ticket 3.1: ImGui 3D Projection Utility
 - [ ] Ticket 3.2: Base Highway Geometry
 - [ ] Ticket 3.3: Note & Sustain Rendering
 - [ ] Ticket 3.4: MIDI-Synthesized Guitar Mode
 - [ ] Ticket 3.5: Guitar Finger Tracking & Technique Labels
 
-**Milestone 4 (Integration)**
+**Milestone 4: Integration**
 - [ ] Ticket 4.1: File Browser Update
 - [ ] Ticket 4.2: Asynchronous Domain Routing
 
-**Milestone 5 (SQLite)**
+**Milestone 5: SQLite**
 - [ ] Ticket 5.1: SQLite Database Setup
 - [ ] Ticket 5.2: Background Scanner & ImGui Integration
 
-**Milestone 6 (Plugins)**
+**Milestone 6: Plugins**
 - [ ] Ticket 6.1: Plugin Architecture & Web Capabilities
 
-**Milestone 7 (Advanced)**
+**Milestone 7: Advanced**
 - [ ] Ticket 7.1: Multi-Instrument Audio Mixer
 - [ ] Ticket 7.2: Visual Effects (VFX) & Shaders
 - [ ] Ticket 7.3: Engine Hardening & Refactors
 
-**Milestone 8 (Learning)**
+**Milestone 8: Learning**
 - [ ] Ticket 8.1: Riff Repeater (Loop & Level Up)
 - [ ] Ticket 8.2: Chord Dictionary Overlay
 - [ ] Ticket 8.3: Piano Dynamic Difficulty (DDC)
 - [ ] Ticket 8.4: Piano Tone Automation
 - [ ] Ticket 8.5: Piano Session Mode (Backing Band)
 
-**Milestone 9 (Performance & Social)**
+**Milestone 9: Performance & Social**
 - [ ] Ticket 9.1: 240FPS High-Refresh Mode
 - [ ] Ticket 9.2: Multi-Instrument Jam Mode
 - [ ] Ticket 9.3: Audio-Reactive Environmental Shaders
 
-**Milestone 10 (Platform)**
+**Milestone 10: Platform**
 - [ ] Ticket 10.1: VR Support (First Person Camera)
 - [ ] Ticket 10.2: Full Cross-Platform Portability
 
-**Milestone 11 (Polish)**
+**Milestone 11: Polish**
 - [ ] Ticket 11.1: Guitar "Waterfall" Sight-Reading Mode
 - [ ] Ticket 11.2: Unified "Omni" HUD & Aesthetics
 - [ ] Ticket 11.3: Cross-Instrument Playlists

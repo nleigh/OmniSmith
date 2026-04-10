@@ -26,10 +26,10 @@ dotnet publish src/OmniSmith/OmniSmith.csproj -c Release --self-contained true -
 The system is transitioning to a **Domain-based Strategy Pattern** (using `IPlayableSong`). 
 
 Detailed documentation and tracking have been moved to the `Project/` directory:
-- **Roadmap & Tasks**: [Tickets/Milestones/](file:///Tickets/Milestones/) (Milestone Overview)
-- **Technical Specs**: [Project/Spec/](file:///Project/Spec/) (Includes TechSpec and Future Ideas)
-- **Execution**: All step-by-step blueprints are in the [Tickets/](file:///Tickets/) directory.
-- **Tracking**: Persistent agent state is managed in [Project/agent_state.json](file:///Project/agent_state.json).
+- **Roadmap & Tasks**: [Tickets/Milestones/](Tickets/Milestones/) (Milestone Overview)
+- **Technical Specs**: [Project/Spec/](Project/Spec/) (Includes TechSpec and Future Ideas)
+- **Execution**: All step-by-step blueprints are in the [Tickets/](Tickets/) directory.
+- **Tracking**: Persistent agent state is managed in [Project/agent_state.json](Project/agent_state.json).
 
 ### Implementation Core
 - **Core Engine:** Manages global state, application loop, and handles window rendering independently of the music file type. Includes an embedded **SQLite Database** (`Microsoft.Data.Sqlite`) to seamlessly index and paginate thousands of files.

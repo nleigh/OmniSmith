@@ -10,6 +10,6 @@ With the Openthesia engine refactored into `OmniSmith`, we introduce the **Guita
 
 ### 📝 Tickets
 All detailed logic, API usages, and structures live in the `Tickets/` directory:
-- [Ticket 2.1: Domain Models](../Tickets/Ticket_2.1.md)
-- [Ticket 2.2: Rocksmith CDLC Parsing](../Tickets/Ticket_2.2.md)
-- [Ticket 2.3: Audio Extraction Pipeline](../Tickets/Ticket_2.3.md)
+- [Ticket 2.1: Domain Models](../Ticket_2.1.md)
+- [Ticket 2.2: Rocksmith CDLC Parsing](../Ticket_2.2.md)
+- [Ticket 2.3: Audio Extraction Pipeline](../Ticket_2.3.md)

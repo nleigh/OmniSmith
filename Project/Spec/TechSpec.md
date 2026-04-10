@@ -7,7 +7,7 @@ The OmniRhythm Engine (OmniSmith) is a unified C# rhythm game platform. It merge
 - **Language / Runtime:** C# 10.0 / .NET 6.0
 - **Graphics Backend:** Veldrid (Polymorphic wrapper over DirectX/Vulkan/OpenGL)
 - **UI Framework:** Dear ImGui (ImGui.NET)
-- **Audio Engine:** ManagedBass (Primary backend for playback, mixing, FFT, and time-stretch)
+- **Audio Engine:** NAudio (current). **ManagedBass** is the planned migration target for advanced playback, mixing, FFT, and time-stretch (not yet added as a dependency).
 - **MIDI Parsing:** Melanchall DryWetMIDI
 - **CDLC Parsing:** System.Xml.Linq (Handling Rocksmith2014 unencrypted `_lead.xml` definitions)
 
@@ -67,7 +67,7 @@ Because ImGui is inherently 2D, a mathematical projection utility transforms `(X
 ---
 
 ## 5. File System & IO
-- **Config & Settings:** Managed implicitly by the `SettingsManager` class and serialized to `%AppData%/OmniSmith/config.json`.
+- **Config & Settings:** Stored via `ProgramData.SettingsPath` and serialized as `Settings.json`. The application uses this centralized path abstraction for settings persistence.
 - **Temporary Assets:** When Rocksmith `.psarc` files are unpacked, their WEM audio tracks are uncompressed into a temporary `.wav` cache stored in `AppDomain.CurrentDomain.BaseDirectory + "/cache/"`. This is managed and wiped inside `GuitarSong.Dispose()`.
 
 ## 6. Extensibility

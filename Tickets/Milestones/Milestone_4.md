@@ -10,5 +10,5 @@ With both the Piano and Guitar domains fully functional in isolation, the final 
 
 ### 📝 Tickets
 File modification procedures and async C# logic are documented here:
-- [Ticket 4.1: File Browser Update](../Tickets/Ticket_4.1.md)
-- [Ticket 4.2: Asynchronous Song Factory](../Tickets/Ticket_4.2.md)
+- [Ticket 4.1: File Browser Update](../Ticket_4.1.md)
+- [Ticket 4.2: Asynchronous Song Factory](../Ticket_4.2.md)

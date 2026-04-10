@@ -10,6 +10,6 @@ This milestone translates the Javascript WebGL canvas drawing logic from Slopsmi
 
 ### 📝 Tickets
 Mathematical details, constants, and loops are fully outlined here:
-- [Ticket 3.1: ImGui 3D Projection Utility](../Tickets/Ticket_3.1.md)
-- [Ticket 3.2: Base Highway Geometry](../Tickets/Ticket_3.2.md)
-- [Ticket 3.3: Note & Sustain Rendering](../Tickets/Ticket_3.3.md)
+- [Ticket 3.1: ImGui 3D Projection Utility](../Ticket_3.1.md)
+- [Ticket 3.2: Base Highway Geometry](../Ticket_3.2.md)
+- [Ticket 3.3: Note & Sustain Rendering](../Ticket_3.3.md)

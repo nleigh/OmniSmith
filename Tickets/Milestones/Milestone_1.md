@@ -10,5 +10,5 @@ The goal of this milestone is to decouple the existing MIDI-specific rendering p
 
 ### 📝 Tickets
 Please refer to the explicit step-by-step implementation specs in the `Tickets/` directory:
-- [Ticket 1.1: Interface Extraction](../Tickets/Ticket_1.1.md)
-- [Ticket 1.2: State Management & Main Loop](../Tickets/Ticket_1.2.md)
+- [Ticket 1.1: Interface Extraction](../Ticket_1.1.md)
+- [Ticket 1.2: State Management & Main Loop](../Ticket_1.2.md)

@@ -16,7 +16,7 @@ public class GuitarSong : IPlayableSong
     public List<GuitarChord> Chords { get; set; } = new();
     
     // Audio engine reference will be populated during Factory Loading
-    public string CachedWavPath { get; set; }
+    public string? CachedWavPath { get; set; }
 
     public GuitarSong()
     {
@@ -25,7 +25,7 @@ public class GuitarSong : IPlayableSong
     public void Update(float audioTimeMs)
     {
         // TODO for Local Agent: 
-        // Synchronize NAudio playback timing logic here.
+        // Synchronize ManagedBass playback timing logic here.
     }
 
     public void Draw(ImDrawListPtr drawList)
@@ -36,8 +36,8 @@ public class GuitarSong : IPlayableSong
 
     public void Dispose()
     {
-        // Clean up NAudio streams and delete CachedWavPath from disk
-        if (System.IO.File.Exists(CachedWavPath))
+        // Clean up ManagedBass streams and delete CachedWavPath from disk
+        if (!string.IsNullOrEmpty(CachedWavPath) && System.IO.File.Exists(CachedWavPath))
         {
             try { System.IO.File.Delete(CachedWavPath); } catch { }
         }

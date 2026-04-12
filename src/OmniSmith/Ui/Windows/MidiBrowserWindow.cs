@@ -59,11 +59,33 @@ public class MidiBrowserWindow : ImGuiWindow
     {
         PreviewManager.StopPreview(); // Stop any pending preview
         GameStateManager.IncrementPlayCount(file);
-        MidiFileHandler.LoadMidiFile(file);
+
+        string extension = System.IO.Path.GetExtension(file).ToLower();
+        if (extension == ".mid")
+        {
+            MidiFileHandler.LoadMidiFile(file);
+        }
+        else if (extension == ".psarc")
+        {
+            // Use the async factory via fire-and-forget for now to avoid blocking the UI
+            _ = Task.Run(async () => {
+                try {
+                    var song = await SongFactory.LoadSongAsync(file);
+                    Application.CurrentSong?.Dispose();
+                    Application.CurrentSong = song;
+                } catch (Exception ex) {
+                    Console.WriteLine($"Error loading PSARC: {ex.Message}");
+                }
+            });
+        }
+
         // we start and stop the playback so we can change the time before playing the song,
         // else falling notes and keypresses are mismatched
-        MidiPlayer.Playback.Start();
-        MidiPlayer.Playback.Stop();
+        if (MidiPlayer.Playback != null)
+        {
+            MidiPlayer.Playback.Start();
+            MidiPlayer.Playback.Stop();
+        }
         WindowsManager.SetWindow(Enums.Windows.ModeSelection);
     }
 

@@ -14,6 +14,8 @@ public class GuitarSong : IPlayableSong
 
     public List<GuitarNote> Notes { get; set; } = new();
     public List<GuitarChord> Chords { get; set; } = new();
+    public List<float> Beats { get; set; } = new();
+    public List<float> Anchors { get; set; } = new();
     
     // Audio engine reference will be populated during Factory Loading
     public string? CachedWavPath { get; set; }
@@ -30,8 +32,9 @@ public class GuitarSong : IPlayableSong
 
     public void Draw(ImDrawListPtr drawList)
     {
-        // TODO for Local Agent (Ticket 3.x):
-        // Implement 3D Highway Projection here.
+        var io = ImGui.GetIO();
+        var pos = new System.Numerics.Vector2(io.DisplaySize.X / 2, io.DisplaySize.Y / 2);
+        drawList.AddText(pos, 0xFFFFFFFF, "Loading Guitar Data...");
     }
 
     public void Dispose()

@@ -134,7 +134,21 @@ public class GuitarSong : IPlayableSong
                 
                 if (proj.Scale > 0.5f)
                 {
-                    drawList.AddText(proj.ScreenPos - new Vector2(radius, radius), 0xFFFFFFFF, note.Fret.ToString());
+                    // Finger number
+                    string fingerText = note.Finger >= 0 ? note.Finger.ToString() : note.Fret.ToString();
+                    drawList.AddText(proj.ScreenPos - new Vector2(radius, radius), 0xFFFFFFFF, fingerText);
+
+                    // Technique Label
+                    string techLabel = "";
+                    if (note.Techniques.HasFlag(NoteTechnique.HammerOn)) techLabel = "H";
+                    else if (note.Techniques.HasFlag(NoteTechnique.PullOff)) techLabel = "P";
+                    else if (note.Techniques.HasFlag(NoteTechnique.Slide)) techLabel = "S";
+                    else if (note.Techniques.HasFlag(NoteTechnique.Bend)) techLabel = "B";
+
+                    if (!string.IsNullOrEmpty(techLabel))
+                    {
+                        drawList.AddText(proj.ScreenPos + new Vector2(radius, radius), 0xFFFFFF00, techLabel);
+                    }
                 }
             }
         }

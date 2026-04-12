@@ -9,4 +9,5 @@ public class GuitarNote
     public NoteTechnique Techniques { get; set; }
     public float BendValue { get; set; }
     public int SlideTo { get; set; }
+    public int Finger { get; set; } = -1;
 }

@@ -43,9 +43,11 @@ public class MidiBrowserWindow : ImGuiWindow
         foreach (var midiPath in MidiPathsManager.MidiPaths)
         {
             if (!Directory.Exists(midiPath)) continue;
-            var watcher = new FileSystemWatcher(midiPath, "*.mid")
+            var watcher = new FileSystemWatcher(midiPath, "*.*")
             {
                 NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite,
+                EnableRaisingEvents = true
+            };
                 EnableRaisingEvents = true
             };
             watcher.Created += (_, _) => _fileListDirty = true;
@@ -234,11 +236,13 @@ public class MidiBrowserWindow : ImGuiWindow
                             _cachedMidiFiles.Clear();
                             foreach (var midiPath in MidiPathsManager.MidiPaths)
                             {
-                                if (Directory.Exists(midiPath))
-                                {
-                                    var files = Directory.GetFiles(midiPath, "*.mid");
-                                    _cachedMidiFiles.AddRange(files);
-                                }
+                            if (Directory.Exists(midiPath))
+                            {
+                                var files = Directory.GetFiles(midiPath, "*.*")
+                                    .Where(f => f.EndsWith(".mid", StringComparison.OrdinalIgnoreCase) || f.EndsWith(".psarc", StringComparison.OrdinalIgnoreCase))
+                                    .ToList();
+                                _cachedMidiFiles.AddRange(files);
+                            }
                             }
                             _fileListDirty = false;
                         }

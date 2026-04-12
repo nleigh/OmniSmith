@@ -48,7 +48,7 @@ public class OpenFileDialog
     public string Title { get; set; } = "Open a file...";
     public bool Multiselect { get; set; } = false;
     public string InitialDirectory { get; set; } = null;
-    public string Filter { get; set; } = "All files(*.*)\0\0";
+    public string Filter { get; set; } = "Playable Files (*.mid, *.psarc)|*.mid;*.psarc|All Files (*.*)|*.*";
     public bool ShowHidden { get; set; } = false;
     public bool Success { get; private set; }
     public string[] Files { get; private set; }

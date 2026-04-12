@@ -1,12 +1,15 @@
 using OmniSmith.Core.Midi;
 using OmniSmith.Ui.Windows;
 using ImGuiNET;
+using OmniSmith.Core.Interfaces;
 
 namespace OmniSmith.Core;
 
 public class Application
 {
     public static Application AppInstance;
+    public static bool IsLoading { get; set; } = false;
+    public static IPlayableSong? CurrentSong { get; set; }
     protected bool _isRunning = true;
     protected List<ImGuiWindow> _imguiWindows = new();
 
@@ -50,11 +53,24 @@ public class Application
             string nextFile = SongQueueManager.GetNext();
             if (nextFile != null)
             {
-                MidiFileHandler.LoadMidiFile(nextFile);
-                MidiPlayer.Timer = 0;
-                MidiPlayer.Seconds = 0;
-                MidiPlayer.Playback.Start();
-                MidiPlayer.StartTimer();
+                Application.IsLoading = true;
+                _ = Task.Run(async () => {
+                    try {
+                        var song = await SongFactory.LoadSongAsync(nextFile);
+                        Application.CurrentSong?.Dispose();
+                        Application.CurrentSong = song;
+                        
+                        // Start audio/timer logic
+                        MidiPlayer.Timer = 0;
+                        MidiPlayer.Seconds = 0;
+                        MidiPlayer.Playback.Start();
+                        MidiPlayer.StartTimer();
+                    } catch (Exception ex) {
+                        Console.WriteLine($"Error loading song: {ex.Message}");
+                    } finally {
+                        Application.IsLoading = false;
+                    }
+                });
             }
         }
 

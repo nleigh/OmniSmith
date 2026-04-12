@@ -40,21 +40,19 @@ public class MidiBrowserWindow : ImGuiWindow
         foreach (var watcher in _watchers) watcher.Dispose();
         _watchers.Clear();
 
-        foreach (var midiPath in MidiPathsManager.MidiPaths)
-        {
-            if (!Directory.Exists(midiPath)) continue;
-            var watcher = new FileSystemWatcher(midiPath, "*.*")
+            foreach (var midiPath in MidiPathsManager.MidiPaths)
             {
-                NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite,
-                EnableRaisingEvents = true
-            };
-                EnableRaisingEvents = true
-            };
-            watcher.Created += (_, _) => _fileListDirty = true;
-            watcher.Deleted += (_, _) => _fileListDirty = true;
-            watcher.Renamed += (_, _) => _fileListDirty = true;
-            _watchers.Add(watcher);
-        }
+                if (!Directory.Exists(midiPath)) continue;
+                var watcher = new FileSystemWatcher(midiPath, "*.*")
+                {
+                    NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite,
+                    EnableRaisingEvents = true
+                };
+                watcher.Created += (_, _) => _fileListDirty = true;
+                watcher.Deleted += (_, _) => _fileListDirty = true;
+                watcher.Renamed += (_, _) => _fileListDirty = true;
+                _watchers.Add(watcher);
+            }
     }
 
     private void PlaySong(string file, SongState songState)

@@ -15,7 +15,7 @@
       "title": "Audio Backend & ManagedBass Integration",
       "tickets": [
                  { "id": "2.1", "status": "done", "file_reference": "Tickets/Ticket_2.1.md" },
-        { "id": "2.2", "status": "incomplete", "file_reference": "Tickets/Ticket_2.2.md" },
+         { "id": "2.2", "status": "done", "file_reference": "Tickets/Ticket_2.2.md" },
         { "id": "2.3", "status": "incomplete", "file_reference": "Tickets/Ticket_2.3.md" }
       ]
     },

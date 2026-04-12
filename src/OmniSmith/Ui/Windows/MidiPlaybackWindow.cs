@@ -21,7 +21,7 @@ public class MidiPlaybackWindow : ImGuiWindow
         {
             ImGui.SetCursorPosX((ImGui.GetIO().DisplaySize.X - 300) / 2);
             ImGui.SetCursorPosY((ImGui.GetIO().DisplaySize.Y - 50) / 2);
-            ImGui.Text("Extracting CDLC Audio... Please wait.");
+            ImGui.Text("Loading song... Please wait.");
             return;
         }
 

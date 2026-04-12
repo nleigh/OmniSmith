@@ -1,0 +1,126 @@
+
+Context: You are an expert C#/.NET Game Engine Developer. Your task is to act as the primary software engineer for "OmniRhythm", a unified C# rhythm game engine. We are merging the capabilities of two open-source projects: "OmniSmith" (a C# Piano MIDI visualizer) and "Slopsmith" (a web-based Rocksmith 2014 CDLC player).
+
+My fork of OmniSmith: https://github.com/nleigh/OmniSmith
+Omnislop: https://github.com/byrongamatos/slopsmith
+
+
+Goal: Modify the OmniSmith C# codebase to support loading, decoding, and playing Rocksmith 2014 .psarc files alongside standard .mid files, using similar approach to slopsmith.
+
+Port slopsmith into OmniSmith to create an omni rhythm game app allowing playing of piano midi or psarc files
+
+Please review the following Technical Specification and Implementation Plan. Acknowledge your understanding of the architecture,
+
+
+
+You will be reviewing the current plan, being critical and adding further/improved design details and detailed implementation notes to Milestone/Tickets
+I will use a different weaker model/agent to implement, so you need to plan as much as possible and leave clear implementation instructions that can be followed
+If need to break down tasks further, add new tasks and create more milestonse feel free to
+Feel free to update the spec to make it more clear.
+My local model/agent does not have the largest context window
+Create a structure to allow the local model/agent to pick up tasks, and update task status for it to easily resume from if it has to clear context
+Can also make pull requests for each milestone or task, and keep commits small
+
+
+
+
+
+
+OMNIRHYTHM: TECHNICAL SPECIFICATION
+1. Architectural Strategy: The Universal Timeline
+Do not build separate players for MIDI and CDLC. Instead, we will abstract the parsed data into a Universal Timeline.
+
+Input Layer: Specialized parsers read the raw files (MIDI parser for .mid, Rocksmith2014.NET for .psarc/SNG).
+
+Abstraction Layer: Parsers convert their proprietary note data into a generic OmniNote data structure.
+
+Render Layer: The engine reads the OmniNote array. If the context is Piano, it draws falling bars to 88 keys. If the context is Guitar, it draws 3D notes moving down a 6-string highway.
+
+2. Tech Stack & Dependencies
+Core: C# / .NET (Matching OmniSmith's current version).
+
+CDLC Parsing: Rocksmith2014.NET (pull via NuGet or source). This will handle PSARC decryption, extraction, and XML/SNG parsing.
+
+Audio Engine: ManagedBass (BASS audio library wrapper). Essential for handling real-time audio playback, volume control, and high-quality time-stretching/pitch-shifting without altering the original file.
+
+Audio Decoding (The WEM Pipeline): vgmstream-cli and ffmpeg.exe. These must be bundled as external binaries. The C# app will use System.Diagnostics.Process to transparently convert Rocksmith's proprietary .wem audio files into .ogg or .wav in a system Temp directory prior to playback.
+
+
+OMNIRHYTHM: MODULAR TECH SPEC
+1. Architectural Strategy: Separation of Domains
+Instead of forcing everything into one "Omni" class, we will split the app into three distinct layers:
+
+The Shared Core Engine: Manages global state, audio playback, time synchronization, and the ImGui UI.
+
+Domain A (Piano/OmniSmith Legacy): Contains the MIDI parser (DryWetMIDI) and the 88-key falling-block renderer.
+
+Domain B (Guitar/Slopsmith Port): Contains the PSARC parser (Rocksmith2014.NET) and the 6-string 3D highway renderer.
+
+2. Core Abstractions (Interfaces)
+To allow the Core Engine to handle both domains without knowing their specific details, we will define strict interfaces.
+
+C#
+// Shared by both domains
+public interface IPlayableSong {
+    string Title { get; }
+    string Artist { get; }
+    TimeSpan TotalDuration { get; }
+    void Update(float currentAudioTimeMs);
+    void Draw(ImDrawListPtr drawList); // ImGui.NET drawing context
+}
+
+// Domain A: Piano Implementation
+public class PianoSong : IPlayableSong {
+    public List<PianoNote> Notes { get; set; }
+    public void Draw(ImDrawListPtr drawList) {
+        // OmniSmith's existing falling block drawing logic goes here
+    }
+}
+
+// Domain B: Guitar Implementation
+public class GuitarSong : IPlayableSong {
+    public List<GuitarNote> Notes { get; set; }
+    public List<GuitarChord> Chords { get; set; }
+    public void Draw(ImDrawListPtr drawList) {
+        // Slopsmith's 3D highway drawing logic goes here
+    }
+}
+3. Tech Stack Additions
+Audio Decoder: vgmstream-cli (to convert Rocksmith .wem audio to standard .wav/.ogg so OmniSmith's NAudio implementation can play it).
+
+CDLC Parser: Rocksmith2014.NET (C# library to read .psarc and XML).
+
+UI: Keep existing ImGui.NET.
+
+IMPLEMENTATION PLAN: MILESTONES & TICKETS
+Milestone 1: Core Engine Refactoring
+Goal: Abstract OmniSmith's tight MIDI coupling so it can load any IPlayableSong.
+
+Ticket 1.1: Interface Extraction. Create the IPlayableSong interface. Move OmniSmith's existing MIDI Note rendering logic out of the main game loop and into a new PianoSong : IPlayableSong class.
+
+Ticket 1.2: State Management. Update the main game loop (Program.cs or main window). It should hold a reference to IPlayableSong CurrentSong. In the render loop, it simply calls CurrentSong.Update(time) and CurrentSong.Draw(drawList). Verify standard MIDI playback still works perfectly.
+
+Milestone 2: The Guitar Domain (Data & Parsing)
+Goal: Implement Domain B's data structures and the PSARC parser.
+
+Ticket 2.1: Guitar Data Structures. Create GuitarNote (Start, Duration, String, Fret, Techniques) and GuitarChord classes specific to Rocksmith's logic.
+
+Ticket 2.2: The Parser Service. Integrate Rocksmith2014.NET. Create a RocksmithParser class that reads a .psarc, parses the XML into your GuitarNote objects, and returns a fully populated GuitarSong : IPlayableSong.
+
+Ticket 2.3: Audio Extraction. Add logic to the RocksmithParser to extract the song_audio.wem file to a Temp folder and use System.Diagnostics.Process to run vgmstream-cli to convert it to .wav. Pass this .wav path to OmniSmith's audio player.
+
+Milestone 3: The Guitar Renderer
+Goal: Port Slopsmith's visual highway into the GuitarSong.Draw method using ImGui.
+
+Ticket 3.1: ImGui 3D Projection. Within GuitarSong.Draw(), write a utility method that takes a 3D coordinate (String, Time, Y_Height) and projects it into 2D ImGui screen coordinates to simulate a 3D highway perspective.
+
+Ticket 3.2: Base Highway. Draw the 6 colored strings and the fretboard base using ImGui.GetWindowDrawList().
+
+Ticket 3.3: Note Drawing. Iterate through the GuitarNote array and draw them on the highway based on (Note.Time - PlaybackTime) * ScrollSpeed.
+
+Milestone 4: Integration
+Goal: Bring it all together in the UI.
+
+Ticket 4.1: File Browser Update. Update OmniSmith's ImGui file browser to accept both .mid and .psarc files.
+
+Ticket 4.2: Domain Routing. When a file is selected, check the extension. If .mid, instantiate a PianoSong via DryWetMIDI. If .psarc, instantiate a GuitarSong via RocksmithParser, and assign it to CurrentSong.

@@ -1,0 +1,9 @@
+namespace OmniSmith.Domains.Guitar.Models;
+
+public class GuitarNote
+{
+    public float Time { get; set; }
+    public int String { get; set; }
+    public int Fret { get; set; }
+    public float Duration { get; set; }
+}

@@ -48,9 +48,9 @@ public class MidiBrowserWindow : ImGuiWindow
                     NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite,
                     EnableRaisingEvents = true
                 };
-                watcher.Created += (_, _) => _fileListDirty = true;
-                watcher.Deleted += (_, _) => _fileListDirty = true;
-                watcher.Renamed += (_, _) => _fileListDirty = true;
+                watcher.Created += (s, e) => { if (e.FullPath.EndsWith(".mid", StringComparison.OrdinalIgnoreCase) || e.FullPath.EndsWith(".psarc", StringComparison.OrdinalIgnoreCase)) _fileListDirty = true; };
+                watcher.Deleted += (s, e) => { if (e.FullPath.EndsWith(".mid", StringComparison.OrdinalIgnoreCase) || e.FullPath.EndsWith(".psarc", StringComparison.OrdinalIgnoreCase)) _fileListDirty = true; };
+                watcher.Renamed += (s, e) => { if (e.OldFullPath.EndsWith(".mid", StringComparison.OrdinalIgnoreCase) || e.OldFullPath.EndsWith(".psarc", StringComparison.OrdinalIgnoreCase) || e.FullPath.EndsWith(".mid", StringComparison.OrdinalIgnoreCase) || e.FullPath.EndsWith(".psarc", StringComparison.OrdinalIgnoreCase)) _fileListDirty = true; };
                 _watchers.Add(watcher);
             }
     }
@@ -258,10 +258,8 @@ public class MidiBrowserWindow : ImGuiWindow
                             {
                             if (Directory.Exists(midiPath))
                             {
-                                var files = Directory.GetFiles(midiPath, "*.*")
-                                    .Where(f => f.EndsWith(".mid", StringComparison.OrdinalIgnoreCase) || f.EndsWith(".psarc", StringComparison.OrdinalIgnoreCase))
-                                    .ToList();
-                                _cachedMidiFiles.AddRange(files);
+                                _cachedMidiFiles.AddRange(Directory.GetFiles(midiPath, "*.mid"));
+                                _cachedMidiFiles.AddRange(Directory.GetFiles(midiPath, "*.psarc"));
                             }
                             }
                             _fileListDirty = false;

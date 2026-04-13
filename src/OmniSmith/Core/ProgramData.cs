@@ -2,6 +2,7 @@ using Melanchall.DryWetMidi.Multimedia;
 using Newtonsoft.Json;
 using OmniSmith.Core.Plugins;
 using OmniSmith.Core.SoundFonts;
+using OmniSmith.Core.Database;
 using OmniSmith.Settings;
 using OmniSmith.Enums;
 using Syroot.Windows.IO;
@@ -22,6 +23,9 @@ public static class ProgramData
         Directory.CreateDirectory(HandsDataPath);
         LoadSettings();
         GameStateManager.Initialize();
+        LibraryDatabase.Instance = new LibraryDatabase();
+        var scanner = new LibraryScanner();
+        scanner.Start();
         ImGuiTheme.Init();
 
         // Always create the SoundFonts directory if it doesn't exist (this is mainly for when building from source)

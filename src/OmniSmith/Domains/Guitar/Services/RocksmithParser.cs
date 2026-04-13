@@ -24,6 +24,40 @@ public static class RocksmithParser
         return ParseXml(xmlPath);
     }
 
+    public static OmniSmith.Core.Database.SongMeta GetMetadata(string psarcPath)
+    {
+        string xmlPath = psarcPath.Replace(".psarc", "_lead.xml");
+        if (!System.IO.File.Exists(xmlPath))
+        {
+            return new OmniSmith.Core.Database.SongMeta(
+                System.IO.Path.GetFileNameWithoutExtension(psarcPath),
+                "Unknown Artist", "Unknown Album", "Unknown Year", 0, "Standard", "Lead", false);
+        }
+
+        try
+        {
+            XDocument doc = XDocument.Load(xmlPath);
+            XElement root = doc.Root ?? throw new InvalidOperationException();
+
+            return new OmniSmith.Core.Database.SongMeta(
+                root.Attribute("title")?.Value ?? System.IO.Path.GetFileNameWithoutExtension(psarcPath),
+                root.Attribute("artist")?.Value ?? "Unknown Artist",
+                root.Attribute("album")?.Value ?? "Unknown Album",
+                root.Attribute("year")?.Value ?? "Unknown Year",
+                0.0, // Duration would require parsing all notes
+                root.Attribute("tuning")?.Value ?? "Standard",
+                "Lead",
+                false
+            );
+        }
+        catch
+        {
+            return new OmniSmith.Core.Database.SongMeta(
+                System.IO.Path.GetFileNameWithoutExtension(psarcPath),
+                "Unknown Artist", "Unknown Album", "Unknown Year", 0, "Standard", "Lead", false);
+        }
+    }
+
     public static GuitarSong ParseXml(string xmlPath)
     {
         XDocument doc = XDocument.Load(xmlPath);

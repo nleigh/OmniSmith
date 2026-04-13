@@ -7,6 +7,7 @@ using System.Linq;
 using System.Numerics;
 using Melanchall.DryWetMidi.Core;
 using Melanchall.DryWetMidi.Interaction;
+using Melanchall.DryWetMidi.Multimedia;
 
 namespace OmniSmith.Domains.Piano;
 
@@ -32,7 +33,7 @@ public class PianoSong : IPlayableSong
         if (Notes.Count > 0)
         {
             var maxEndTime = Notes.Max(n => n.EndTime);
-            TotalDuration = maxEndTime.ToTimeSpan(SongFile.GetTempoMap());
+            TotalDuration = SongFile.GetTempoMap().ToTimeSpan(maxEndTime);
         }
         else
         {

@@ -122,9 +122,7 @@ public class MidiBrowserWindow : ImGuiWindow
                 if (ImGui.Button($"{FontAwesome6.ArrowsRotate} Refresh Metadata", new Vector2(180, 30)))
                 {
                     // Force file list refresh and re-setup watchers
-                    _fileListDirty = true;
-                    SetupFileWatchers();
-
+                    
                     foreach (var midiPath in MidiPathsManager.MidiPaths)
                     {
                         if (Directory.Exists(midiPath))

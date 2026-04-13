@@ -17,6 +17,14 @@ public class MidiPlaybackWindow : ImGuiWindow
 
     protected override void OnImGui()
     {
+        if (Application.IsLoading)
+        {
+            ImGui.SetCursorPosX((ImGui.GetIO().DisplaySize.X - 300) / 2);
+            ImGui.SetCursorPosY((ImGui.GetIO().DisplaySize.Y - 50) / 2);
+            ImGui.Text("Loading song... Please wait.");
+            return;
+        }
+
         Vector2 canvasSize = new(ImGui.GetContentRegionAvail().X, ImGui.GetContentRegionAvail().Y * 75 / 100);
         if (ImGui.BeginChild("Screen", canvasSize))
         {

@@ -40,30 +40,52 @@ public class MidiBrowserWindow : ImGuiWindow
         foreach (var watcher in _watchers) watcher.Dispose();
         _watchers.Clear();
 
-        foreach (var midiPath in MidiPathsManager.MidiPaths)
-        {
-            if (!Directory.Exists(midiPath)) continue;
-            var watcher = new FileSystemWatcher(midiPath, "*.mid")
+            foreach (var midiPath in MidiPathsManager.MidiPaths)
             {
-                NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite,
-                EnableRaisingEvents = true
-            };
-            watcher.Created += (_, _) => _fileListDirty = true;
-            watcher.Deleted += (_, _) => _fileListDirty = true;
-            watcher.Renamed += (_, _) => _fileListDirty = true;
-            _watchers.Add(watcher);
-        }
+                if (!Directory.Exists(midiPath)) continue;
+                var watcher = new FileSystemWatcher(midiPath, "*.*")
+                {
+                    NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite,
+                    EnableRaisingEvents = true
+                };
+                watcher.Created += (s, e) => { if (e.FullPath.EndsWith(".mid", StringComparison.OrdinalIgnoreCase) || e.FullPath.EndsWith(".psarc", StringComparison.OrdinalIgnoreCase)) _fileListDirty = true; };
+                watcher.Deleted += (s, e) => { if (e.FullPath.EndsWith(".mid", StringComparison.OrdinalIgnoreCase) || e.FullPath.EndsWith(".psarc", StringComparison.OrdinalIgnoreCase)) _fileListDirty = true; };
+                watcher.Renamed += (s, e) => { if (e.OldFullPath.EndsWith(".mid", StringComparison.OrdinalIgnoreCase) || e.OldFullPath.EndsWith(".psarc", StringComparison.OrdinalIgnoreCase) || e.FullPath.EndsWith(".mid", StringComparison.OrdinalIgnoreCase) || e.FullPath.EndsWith(".psarc", StringComparison.OrdinalIgnoreCase)) _fileListDirty = true; };
+                _watchers.Add(watcher);
+            }
     }
 
     private void PlaySong(string file, SongState songState)
     {
         PreviewManager.StopPreview(); // Stop any pending preview
         GameStateManager.IncrementPlayCount(file);
-        MidiFileHandler.LoadMidiFile(file);
+
+        string extension = System.IO.Path.GetExtension(file).ToLower();
+        if (extension == ".mid")
+        {
+            MidiFileHandler.LoadMidiFile(file);
+        }
+        else if (extension == ".psarc")
+        {
+            // Use the async factory via fire-and-forget for now to avoid blocking the UI
+            _ = Task.Run(async () => {
+                try {
+                    var song = await SongFactory.LoadSongAsync(file);
+                    Application.CurrentSong?.Dispose();
+                    Application.CurrentSong = song;
+                } catch (Exception ex) {
+                    Console.WriteLine($"Error loading PSARC: {ex.Message}");
+                }
+            });
+        }
+
         // we start and stop the playback so we can change the time before playing the song,
         // else falling notes and keypresses are mismatched
-        MidiPlayer.Playback.Start();
-        MidiPlayer.Playback.Stop();
+        if (MidiPlayer.Playback != null)
+        {
+            MidiPlayer.Playback.Start();
+            MidiPlayer.Playback.Stop();
+        }
         WindowsManager.SetWindow(Enums.Windows.ModeSelection);
     }
 
@@ -234,11 +256,11 @@ public class MidiBrowserWindow : ImGuiWindow
                             _cachedMidiFiles.Clear();
                             foreach (var midiPath in MidiPathsManager.MidiPaths)
                             {
-                                if (Directory.Exists(midiPath))
-                                {
-                                    var files = Directory.GetFiles(midiPath, "*.mid");
-                                    _cachedMidiFiles.AddRange(files);
-                                }
+                            if (Directory.Exists(midiPath))
+                            {
+                                _cachedMidiFiles.AddRange(Directory.GetFiles(midiPath, "*.mid"));
+                                _cachedMidiFiles.AddRange(Directory.GetFiles(midiPath, "*.psarc"));
+                            }
                             }
                             _fileListDirty = false;
                         }

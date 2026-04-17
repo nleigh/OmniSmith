@@ -89,7 +89,11 @@ public class MidiBrowserWindow : ImGuiWindow
 
             ImGui.SameLine();
             ImGui.SetNextItemWidth(ImGui.GetContentRegionAvail().X - 50); // Leave space for trailing label if any
+            
+            string oldSearch = _searchBuffer;
             ImGui.InputTextWithHint("##search_input", $"Search {FontAwesome6.MagnifyingGlass}...", ref _searchBuffer, 1000);
+            if (oldSearch != _searchBuffer) _currentPage = 0;
+            
             ImGui.EndChild();
         }
     }
@@ -183,6 +187,7 @@ public class MidiBrowserWindow : ImGuiWindow
 
                 if (ImGui.BeginChild("Midi file list", new Vector2(availRegion.X - playlistWidth - detailWidth - 50f, availRegion.Y)))
                 {
+                    int songsReturned = 0;
                     if (ImGui.BeginTable("File Table", 12, ImGuiTableFlags.PadOuterX | ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.SizingFixedFit | ImGuiTableFlags.Sortable | ImGuiTableFlags.ScrollY, ImGui.GetContentRegionAvail()))
                     {
                         ImGui.TableSetupColumn("", ImGuiTableColumnFlags.NoSort | ImGuiTableColumnFlags.WidthFixed, 30f);
@@ -226,7 +231,7 @@ public class MidiBrowserWindow : ImGuiWindow
  
                         // Fetch paginated data from SQLite
                         string sortCol = _sortColumnIndex switch {
-                            2 => "filename",
+                            2 => "title",
                             3 => "artist",
                             4 => "album",
                             5 => "duration",
@@ -235,6 +240,7 @@ public class MidiBrowserWindow : ImGuiWindow
                         };
                         string dir = _sortDirection == 1 ? "ASC" : "DESC";
                         var songs = OmniSmith.Core.Database.LibraryDatabase.Instance.QueryPage(_searchBuffer, _currentPage, 50, sortCol, dir);
+                        songsReturned = songs.Count;
 
                         foreach (var song in songs)
                         {
@@ -255,14 +261,14 @@ public class MidiBrowserWindow : ImGuiWindow
                             }
                             else if (_scrollToLetter.HasValue)
                             {
-                                string compareStr = _sortColumnIndex switch {
+                                string? compareStr = _sortColumnIndex switch {
                                     2 => fileName,
                                     3 => song.Artist,
                                     4 => song.Album,
                                     _ => fileName
                                 };
                                 
-                                if (compareStr.Length > 0)
+                                if (!string.IsNullOrEmpty(compareStr))
                                 {
                                     char firstChar = char.ToUpperInvariant(compareStr[0]);
                                     if (_scrollToLetter == '#')
@@ -440,6 +446,20 @@ public class MidiBrowserWindow : ImGuiWindow
  
                         ImGui.EndTable();
                     }
+                    
+                    ImGui.Spacing();
+                    if (_currentPage > 0)
+                    {
+                        if (ImGui.Button("< Prev Page")) _currentPage--;
+                        ImGui.SameLine();
+                    }
+                    ImGui.Text($"Page {_currentPage + 1}");
+                    if (songsReturned == 50)
+                    {
+                        ImGui.SameLine();
+                        if (ImGui.Button("Next Page >")) _currentPage++;
+                    }
+
                     ImGui.EndChild();
                 }
 

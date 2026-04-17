@@ -14,7 +14,7 @@ namespace OmniSmith.Core.Database
     {
         private readonly CancellationTokenSource _cts = new();
         private readonly LibraryDatabase _db;
-        private bool _isScanning = false;
+        private readonly SemaphoreSlim _scanLock = new(1, 1);
 
         public LibraryScanner()
         {
@@ -39,20 +39,29 @@ namespace OmniSmith.Core.Database
                 {
                     await ScanLibraryAsync(token);
                 }
+                catch (OperationCanceledException) when (token.IsCancellationRequested)
+                {
+                    break;
+                }
                 catch (Exception ex)
                 {
                     Console.WriteLine($"Library Scanner Error: {ex.Message}");
                 }
 
-                // Scan every 30 seconds
-                await Task.Delay(TimeSpan.FromSeconds(30), token);
+                try
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(30), token);
+                }
+                catch (OperationCanceledException) when (token.IsCancellationRequested)
+                {
+                    break;
+                }
             }
         }
 
         private async Task ScanLibraryAsync(CancellationToken token)
         {
-            if (_isScanning) return;
-            _isScanning = true;
+            if (!await _scanLock.WaitAsync(0, token)) return;
 
             try
             {
@@ -61,7 +70,10 @@ namespace OmniSmith.Core.Database
                     if (token.IsCancellationRequested) break;
                     if (!Directory.Exists(path)) continue;
 
-                    var files = Directory.GetFiles(path, "*.psarc", SearchOption.AllDirectories);
+                    var files = Directory.EnumerateFiles(path, "*.*", SearchOption.AllDirectories)
+                        .Where(s => s.EndsWith(".psarc", StringComparison.OrdinalIgnoreCase) ||
+                                    s.EndsWith(".mid", StringComparison.OrdinalIgnoreCase));
+                                    
                     foreach (var file in files)
                     {
                         if (token.IsCancellationRequested) break;
@@ -70,18 +82,32 @@ namespace OmniSmith.Core.Database
                         double mtime = new DateTimeOffset(info.LastWriteTimeUtc).ToUnixTimeSeconds();
                         long size = info.Length;
 
-                        // We don't have a 'Get' method in LibraryDatabase yet, 
-                        // but Put handles INSERT OR REPLACE.
-                        // For performance, in a real app we'd check if it needs updating first.
+                        var existing = _db.GetMtimeSize(file);
+                        if (existing != null && existing.Value.Mtime == mtime && existing.Value.Size == size)
+                        {
+                            continue;
+                        }
                         
-                        var meta = RocksmithParser.GetMetadata(file);
+                        SongMeta meta;
+                        if (file.EndsWith(".psarc", StringComparison.OrdinalIgnoreCase))
+                        {
+                            meta = RocksmithParser.GetMetadata(file);
+                        }
+                        else
+                        {
+                            meta = new SongMeta(
+                                Title: Path.GetFileNameWithoutExtension(file),
+                                Artist: "", Album: "", Year: "", Duration: 0, Tuning: "", Arrangements: "", HasLyrics: false
+                            );
+                        }
+                        
                         _db.Put(file, mtime, size, meta);
                     }
                 }
             }
             finally
             {
-                _isScanning = false;
+                _scanLock.Release();
             }
         }
     }

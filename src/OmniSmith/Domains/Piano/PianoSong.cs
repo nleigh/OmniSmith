@@ -33,7 +33,8 @@ public class PianoSong : IPlayableSong
         if (Notes.Count > 0)
         {
             var maxEndTime = Notes.Max(n => n.EndTime);
-            TotalDuration = SongFile.GetTempoMap().ToTimeSpan(maxEndTime);
+            var metricTime = TimeConverter.ConvertTo<MetricTimeSpan>(maxEndTime, SongFile.GetTempoMap());
+            TotalDuration = (TimeSpan)metricTime;
         }
         else
         {

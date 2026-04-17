@@ -39,10 +39,11 @@ namespace OmniSmith.Core.Database
 
         public LibraryDatabase()
         {
-            string dbPath = Path.Combine(KnownFolders.RoamingAppData.Path, "web_library.db");
+            string dbPath = Path.Combine(KnownFolders.RoamingAppData.Path, "OmniSmith", "Library.db");
             _connectionString = new SqliteConnectionStringBuilder
             {
-                DataSource = dbPath
+                DataSource = dbPath,
+                DefaultTimeout = 5
             }.ToString();
 
             InitializeDatabase();
@@ -52,6 +53,10 @@ namespace OmniSmith.Core.Database
         {
             using var connection = new SqliteConnection(_connectionString);
             connection.Open();
+
+            using var pragma = connection.CreateCommand();
+            pragma.CommandText = "PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;";
+            pragma.ExecuteNonQuery();
 
             var command = connection.CreateCommand();
             command.CommandText = @"
@@ -97,6 +102,23 @@ namespace OmniSmith.Core.Database
             command.ExecuteNonQuery();
         }
 
+        public (double Mtime, long Size)? GetMtimeSize(string filename)
+        {
+            using var connection = new SqliteConnection(_connectionString);
+            connection.Open();
+
+            var command = connection.CreateCommand();
+            command.CommandText = "SELECT mtime, size FROM songs WHERE filename = $filename";
+            command.Parameters.AddWithValue("$filename", filename);
+
+            using var reader = command.ExecuteReader();
+            if (reader.Read())
+            {
+                return (reader.GetDouble(0), reader.GetInt64(1));
+            }
+            return null;
+        }
+
         public List<SongEntry> QueryPage(string query, int page, int size, string sortColumn, string direction)
         {
             var results = new List<SongEntry>();
@@ -117,7 +139,7 @@ namespace OmniSmith.Core.Database
             var command = connection.CreateCommand();
             command.CommandText = $@"
                 SELECT * FROM songs 
-                WHERE title LIKE $query OR artist LIKE $query OR album LIKE $query
+                WHERE filename LIKE $query OR title LIKE $query OR artist LIKE $query OR album LIKE $query
                 ORDER BY {sortColumn} {dir}
                 LIMIT $limit OFFSET $offset;";
 

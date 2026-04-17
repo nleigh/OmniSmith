@@ -144,4 +144,36 @@ public class RocksmithParserTests : IDisposable
         // Assert
         song.Notes[0].Techniques.Should().NotHaveFlag(NoteTechnique.Bend);
     }
+
+    [Fact]
+    public void GetMetadata_ThrowsMissingXml_ReturnsDefault()
+    {
+        var meta = RocksmithParser.GetMetadata("nonexistent.psarc");
+        meta.Title.Should().Be("nonexistent");
+        meta.Artist.Should().Be("Unknown Artist");
+    }
+
+    [Fact]
+    public void GetMetadata_ParsesBasicAttributes()
+    {
+        string psarcPath = Path.Combine(Path.GetTempPath(), "testsong.psarc");
+        string xmlPath = psarcPath.Replace(".psarc", "_lead.xml");
+        string xml = @"<song title='TestTitle' artist='TestArtist' album='TestAlbum' year='2020' tuning='Drop D' />";
+        File.WriteAllText(xmlPath, xml);
+
+        try
+        {
+            var meta = RocksmithParser.GetMetadata(psarcPath);
+            
+            meta.Title.Should().Be("TestTitle");
+            meta.Artist.Should().Be("TestArtist");
+            meta.Album.Should().Be("TestAlbum");
+            meta.Year.Should().Be("2020");
+            meta.Tuning.Should().Be("Drop D");
+        }
+        finally
+        {
+            File.Delete(xmlPath);
+        }
+    }
 }

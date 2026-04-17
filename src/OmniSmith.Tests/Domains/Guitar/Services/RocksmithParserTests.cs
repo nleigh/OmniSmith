@@ -174,4 +174,34 @@ public class RocksmithParserTests : IDisposable
             File.Delete(fakePath);
         }
     }
+    [Fact]
+    public void GetMetadataFromXml_ParsesAttributes()
+    {
+        string xml = @"<song title='TestTitle' artist='TestArtist' album='TestAlbum' year='2020' tuning='Drop D' />";
+        using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(xml));
+
+        var meta = RocksmithParser.GetMetadataFromXml(stream, "fallback.psarc");
+
+        meta.Title.Should().Be("TestTitle");
+        meta.Artist.Should().Be("TestArtist");
+        meta.Album.Should().Be("TestAlbum");
+        meta.Year.Should().Be("2020");
+        meta.Tuning.Should().Be("Drop D");
+    }
+
+    [Fact]
+    public void FindArrangementXml_PrefersLead()
+    {
+        var files = new[] { "songs/vocals.xml", "songs/showlights.xml", "songs/combo.xml", "songs/lead.xml" };
+        var result = RocksmithParser.FindArrangementXml(files);
+        result.Should().Be("songs/lead.xml");
+    }
+
+    [Fact]
+    public void FindArrangementXml_FallsBackToCombo()
+    {
+        var files = new[] { "songs/vocals.xml", "songs/combo.xml" };
+        var result = RocksmithParser.FindArrangementXml(files);
+        result.Should().Be("songs/combo.xml");
+    }
 }

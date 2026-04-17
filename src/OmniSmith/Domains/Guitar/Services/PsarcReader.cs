@@ -1,5 +1,4 @@
 using System;
-using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
@@ -38,6 +37,76 @@ public class PsarcReader
     /// </summary>
     public static Dictionary<string, byte[]> ExtractAll(string filePath)
     {
+        var parsed = ParseHeader(filePath);
+        var result = new Dictionary<string, byte[]>();
+
+        using var fs = File.OpenRead(filePath);
+
+        // Extract all entries by name
+        for (int i = 1; i < parsed.Entries.Count && i - 1 < parsed.Filenames.Length; i++)
+        {
+            string name = parsed.Filenames[i - 1];
+            try
+            {
+                byte[] data = ExtractEntry(fs, parsed.Entries[i], parsed.BlockSizes, parsed.BlockSize);
+                result[name] = data;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"PSARC: Failed to extract '{name}': {ex.Message}");
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Extracts only the manifest and specific entries matching a predicate, avoiding full decompression.
+    /// Used by GetMetadata to avoid extracting audio/image data during library scanning.
+    /// </summary>
+    public static Dictionary<string, byte[]> ExtractByFilter(string filePath, Func<string, bool> filter)
+    {
+        var parsed = ParseHeader(filePath);
+        var result = new Dictionary<string, byte[]>();
+
+        using var fs = File.OpenRead(filePath);
+
+        for (int i = 1; i < parsed.Entries.Count && i - 1 < parsed.Filenames.Length; i++)
+        {
+            string name = parsed.Filenames[i - 1];
+            if (!filter(name)) continue;
+
+            try
+            {
+                byte[] data = ExtractEntry(fs, parsed.Entries[i], parsed.BlockSizes, parsed.BlockSize);
+                result[name] = data;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"PSARC: Failed to extract '{name}': {ex.Message}");
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Returns the list of filenames contained in the PSARC without extracting any data.
+    /// </summary>
+    public static string[] ListEntries(string filePath)
+    {
+        return ParseHeader(filePath).Filenames;
+    }
+
+    private record ParsedPsarc(
+        List<TocEntry> Entries,
+        List<uint> BlockSizes,
+        uint BlockSize,
+        string[] Filenames
+    );
+
+    private static ParsedPsarc ParseHeader(string filePath)
+    {
         using var fs = File.OpenRead(filePath);
         using var br = new BinaryReader(fs);
 
@@ -48,16 +117,18 @@ public class PsarcReader
 
         uint versionMajor = ReadUInt16BE(br);
         uint versionMinor = ReadUInt16BE(br);
-        string compressionType = Encoding.ASCII.GetString(br.ReadBytes(4)); // "zlib" or "lzma"
+        string compressionType = Encoding.ASCII.GetString(br.ReadBytes(4)).TrimEnd('\0');
         uint tocLength = ReadUInt32BE(br);      // Total TOC size (including header)
         uint tocEntrySize = ReadUInt32BE(br);    // Should be 30
         uint numEntries = ReadUInt32BE(br);
         uint blockSize = ReadUInt32BE(br);       // Typically 65536
         uint archiveFlags = ReadUInt32BE(br);
 
+        // Validate compression type  
+        if (!compressionType.Equals("zlib", StringComparison.OrdinalIgnoreCase))
+            throw new NotSupportedException($"Unsupported PSARC compression type: '{compressionType}'. Only zlib is supported.");
+
         // 2. Read and decrypt TOC entries
-        // TOC data starts right after the 32-byte header
-        long tocDataStart = fs.Position;
         int tocDataLength = (int)(tocLength - 32); // Subtract header size
         byte[] tocRaw = br.ReadBytes(tocDataLength);
 
@@ -81,6 +152,8 @@ public class PsarcReader
 
         // 3. Parse TOC entries (each is 30 bytes)
         var entries = new List<TocEntry>();
+        List<uint> blockSizes;
+
         using (var tocStream = new MemoryStream(tocData))
         using (var tocReader = new BinaryReader(tocStream))
         {
@@ -97,7 +170,6 @@ public class PsarcReader
             }
 
             // 4. Read block size table
-            // Calculate how many blocks we need based on entries
             int totalBlocks = 0;
             foreach (var entry in entries)
             {
@@ -106,8 +178,7 @@ public class PsarcReader
                 totalBlocks = Math.Max(totalBlocks, (int)entry.ZIndex + numBlocks);
             }
 
-            // Block sizes are stored as 2-byte BE values
-            var blockSizes = new List<uint>();
+            blockSizes = new List<uint>();
             for (int i = 0; i < totalBlocks; i++)
             {
                 if (tocStream.Position + 2 <= tocStream.Length)
@@ -115,37 +186,19 @@ public class PsarcReader
                     blockSizes.Add(ReadUInt16BE(tocReader));
                 }
             }
-
-            // 5. Extract files
-            var result = new Dictionary<string, byte[]>();
-
-            // Entry 0 is always the manifest (list of filenames, one per line)
-            byte[] manifestData = ExtractEntry(fs, entries[0], blockSizes, blockSize);
-            string[] filenames = Encoding.ASCII.GetString(manifestData)
-                .Split('\n', StringSplitOptions.RemoveEmptyEntries)
-                .Select(s => s.Trim('\r'))
-                .ToArray();
-
-            // Extract remaining entries (entry indices 1..N map to filenames 0..N-1)
-            for (int i = 1; i < entries.Count && i - 1 < filenames.Length; i++)
-            {
-                string name = filenames[i - 1];
-                try
-                {
-                    byte[] data = ExtractEntry(fs, entries[i], blockSizes, blockSize);
-                    result[name] = data;
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"PSARC: Failed to extract '{name}': {ex.Message}");
-                }
-            }
-
-            return result;
         }
+
+        // 5. Extract manifest (entry 0 is always the filename list)
+        byte[] manifestData = ExtractEntry(fs, entries[0], blockSizes, blockSize);
+        string[] filenames = Encoding.ASCII.GetString(manifestData)
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries)
+            .Select(s => s.Trim('\r'))
+            .ToArray();
+
+        return new ParsedPsarc(entries, blockSizes, blockSize, filenames);
     }
 
-    private static byte[] ExtractEntry(FileStream fs, TocEntry entry, List<uint> blockSizes, uint defaultBlockSize)
+    private static byte[] ExtractEntry(Stream fs, TocEntry entry, List<uint> blockSizes, uint defaultBlockSize)
     {
         if (entry.Length == 0)
             return Array.Empty<byte>();
@@ -174,21 +227,12 @@ public class PsarcReader
                 byte[] compressed = new byte[compressedSize];
                 fs.Read(compressed, 0, (int)compressedSize);
 
-                // Check for zlib header (0x78)
+                // Use ZLibStream for proper zlib decompression (handles header + Adler-32 trailer)
                 if (compressed.Length > 2 && compressed[0] == 0x78)
                 {
-                    try
-                    {
-                        // Skip 2-byte zlib header
-                        using var compMs = new MemoryStream(compressed, 2, compressed.Length - 2);
-                        using var deflate = new DeflateStream(compMs, CompressionMode.Decompress);
-                        deflate.CopyTo(output);
-                    }
-                    catch
-                    {
-                        // Fallback: treat as raw data
-                        output.Write(compressed, 0, compressed.Length);
-                    }
+                    using var compMs = new MemoryStream(compressed);
+                    using var zlib = new ZLibStream(compMs, CompressionMode.Decompress);
+                    zlib.CopyTo(output);
                 }
                 else
                 {

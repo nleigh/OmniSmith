@@ -13,5 +13,10 @@ Using the 3D perspective math already in place, we can easily support VR headset
 3. **Stereo Rendering**:
    - Render the highway twice (once for each eye) with a slight horizontal offset representing Inter-Pupillary Distance (IPD).
 
+
+
+### Mandatory TDD Generation 🧪
+- You **must** create parallel `[NEW] src/OmniSmith.Tests/` xUnit class tests for any new services or classes introduced here. You must write checks mapping edge bounds to ensure logic does not fail on edge inputs.
+
 ### Definition of Done
 The user can toggle "VR Mode". Wearing a headset allowed them to see the 3D highway in immersive 3D, moving their head to look around the stage.

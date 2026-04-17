@@ -27,3 +27,7 @@ Avoid blocking the UI thread while extracting `.wem` files and parsing deep XML 
    * In `OnImGui()`, if `Application.IsLoading`, draw a center-screen ImGui Spinner or simple text that says "Extracting CDLC Audio...".
 4. **Verify**:
    Load a heavy PSARC file and verify the application frame rate remains smooth while extracting!
+
+
+### Mandatory TDD Generation 🧪
+- You **must** create parallel `[NEW] src/OmniSmith.Tests/` xUnit class tests for any new services or classes introduced here. You must write checks mapping edge bounds to ensure logic does not fail on edge inputs.

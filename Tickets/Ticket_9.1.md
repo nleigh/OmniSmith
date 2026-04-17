@@ -14,5 +14,10 @@ Rhythm games require low latency and high visual fluidity. We need to ensure the
 3. **Telemetry**:
    - Ensure the FPS counter in the corner accurately reflects these high numbers and that there is no "jutting" or "stuttering" in note movement at high speeds.
 
+
+
+### Mandatory TDD Generation 🧪
+- You **must** create parallel `[NEW] src/OmniSmith.Tests/` xUnit class tests for any new services or classes introduced here. You must write checks mapping edge bounds to ensure logic does not fail on edge inputs.
+
 ### Definition of Done
 The game can run at 240+ FPS on capable hardware. Note movement remains mathematically identical at 60 FPS and 240 FPS (no speed-ups or slow-downs).

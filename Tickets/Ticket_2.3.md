@@ -14,3 +14,7 @@ Rocksmith audio is bundled inside `.psarc` files as Wwise Audio `.wem` files. We
    * Inside `GuitarSong.cs` constructor (or an async initialization method), load the `.wav` file.
    * `public void Play()` -> `waveOut.Play()`.
    * In `Update()`, sync your visual `audioTimeMs` to `audioFileReader.CurrentTime.TotalMilliseconds`.
+
+
+### Mandatory TDD Generation 🧪
+- You **must** create parallel `[NEW] src/OmniSmith.Tests/` xUnit class tests for any new services or classes introduced here. You must write checks mapping edge bounds to ensure logic does not fail on edge inputs.

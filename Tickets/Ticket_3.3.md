@@ -20,3 +20,7 @@ Draw the notes traveling down the highway toward the hitline.
    * Overlay the `note.Fret` number inside the note using ImGui text if the scale allows it to be legible.
 4. **Verify**:
    Run the game with a hardcoded mock note list (e.g., repeating notes every 500ms) to see them scroll correctly toward the camera!
+
+
+### Mandatory TDD Generation 🧪
+- You **must** create parallel `[NEW] src/OmniSmith.Tests/` xUnit class tests for any new services or classes introduced here. You must write checks mapping edge bounds to ensure logic does not fail on edge inputs.

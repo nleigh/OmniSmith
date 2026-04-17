@@ -14,5 +14,10 @@ One of Slopsmith's best features is the ability to loop sections. We want to bri
    - After each loop completes, check the current `AccuracyScoring` for that period.
    - If Accuracy > 95%, increment `MidiPlayer.Playback.Speed` by 5% (up to a max of 2.0).
 
+
+
+### Mandatory TDD Generation 🧪
+- You **must** create parallel `[NEW] src/OmniSmith.Tests/` xUnit class tests for any new services or classes introduced here. You must write checks mapping edge bounds to ensure logic does not fail on edge inputs.
+
 ### Definition of Done
 The user can set loop points in the UI. When enabled, the song loops perfectly, and the playback speed automatically ramps up as the player hits notes accurately.

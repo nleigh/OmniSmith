@@ -13,5 +13,10 @@ To allow for local "jams," the engine needs to support rendering two domains at 
 3. **Synchronization**:
    - Ensure both songs are pinned to the same `PlaybackTimerService` instance so they never drift apart.
 
+
+
+### Mandatory TDD Generation 🧪
+- You **must** create parallel `[NEW] src/OmniSmith.Tests/` xUnit class tests for any new services or classes introduced here. You must write checks mapping edge bounds to ensure logic does not fail on edge inputs.
+
 ### Definition of Done
 The user can select "Jam Mode" and load both a `.mid` and a `.psarc`. Both the 2D piano waterfall and the 3D guitar highway appear side-by-side and play perfectly in sync.

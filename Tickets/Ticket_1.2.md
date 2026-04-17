@@ -17,6 +17,11 @@ With the introduction of multiple domains (Piano, Guitar), architectural stabili
 4. **CI Integration readiness**:
    - Ensure `dotnet test` executes successfully from the solution root.
 
+
+
+### Mandatory TDD Generation 🧪
+- You **must** create parallel `[NEW] src/OmniSmith.Tests/` xUnit class tests for any new services or classes introduced here. You must write checks mapping edge bounds to ensure logic does not fail on edge inputs.
+
 ### Definition of Done
 - `src/OmniSmith.Tests` is part of the solution.
 - `dotnet test` runs and passes on the local environment.

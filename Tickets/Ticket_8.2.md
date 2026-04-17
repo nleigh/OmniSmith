@@ -14,5 +14,10 @@ Unlike piano, guitar chords have complex finger patterns. A Chord Dictionary hel
    - Draw a 6-fret grid. 
    - Draw dots on the frets/strings for the current chord, labeled with finger numbers (1=Index, 4=Pinky) from the XML template.
 
+
+
+### Mandatory TDD Generation 🧪
+- You **must** create parallel `[NEW] src/OmniSmith.Tests/` xUnit class tests for any new services or classes introduced here. You must write checks mapping edge bounds to ensure logic does not fail on edge inputs.
+
 ### Definition of Done
 When playing a PSARC file, a "Chord Guide" window appears. It updates dynamically to show the fingering for the next chord indicated on the highway.

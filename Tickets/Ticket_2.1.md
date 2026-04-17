@@ -21,3 +21,7 @@ Establish the core data structures that will hold Guitar (Rocksmith) arrangement
 
 5. **Verify**:
    Run `dotnet build` to confirm all types resolve.
+
+
+### Mandatory TDD Generation 🧪
+- You **must** create parallel `[NEW] src/OmniSmith.Tests/` xUnit class tests for any new services or classes introduced here. You must write checks mapping edge bounds to ensure logic does not fail on edge inputs.

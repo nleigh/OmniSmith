@@ -14,5 +14,10 @@ Standard time-stretching of WAV audio (as used in Rocksmith) becomes robotic bel
    - Map the `GuitarNote` and `GuitarChord` data back to MIDI events (String/Fret -> Pitch).
    - Send these events to the SoundFontEngine synchronously with the highway rendering.
 
+
+
+### Mandatory TDD Generation 🧪
+- You **must** create parallel `[NEW] src/OmniSmith.Tests/` xUnit class tests for any new services or classes introduced here. You must write checks mapping edge bounds to ensure logic does not fail on edge inputs.
+
 ### Definition of Done
 The user can mute the backing track and hear a synthesized guitar instead. The synthesized sound remains pitch-perfect even when the playback speed is set to 1%.

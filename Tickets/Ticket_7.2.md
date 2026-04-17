@@ -6,7 +6,7 @@ To compete with modern rhythm games, OmniRhythm needs dynamic feedback. We will 
 
 ### Implementation Steps
 1. **Particle System**:
-   - Create `[NEW] Core/Rendering/ParticleSystem.cs`.
+   - Create `[NEW] src/OmniSmith/Core/Rendering/ParticleSystem.cs`.
    - Implement a simple pool of "Spark" particles that can be spawned at a screen position with a color, velocity, and lifetime.
    - Inject this into `IPlayableSong.Update()` and `Draw()`.
 2. **Domain Integration**:
@@ -14,6 +14,11 @@ To compete with modern rhythm games, OmniRhythm needs dynamic feedback. We will 
    - **Guitar**: Spawn sparks or "note explosions" when a note crosses the Hit Line.
 3. **Advanced Shaders (Optional Refinement)**:
    - If using Veldrid, implement a `BloomPass.cs` or `ScanlineShader.cs` to give the 3D highway a neon, retro aesthetic.
+
+
+
+### Mandatory TDD Generation 🧪
+- You **must** create parallel `[NEW] src/OmniSmith.Tests/` xUnit class tests for any new services or classes introduced here. You must write checks mapping edge bounds to ensure logic does not fail on edge inputs.
 
 ### Definition of Done
 The highway feels significantly more "alive." Successfully timed hits result in visual feedback (explosions/sparks) that fade out naturally.

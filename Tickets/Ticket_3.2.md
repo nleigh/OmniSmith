@@ -26,3 +26,7 @@ Render the static elements of the guitar track (fretboard, strings, hitline).
    * Loop through the `Beats` list. Calculate `zDepth = beat.Time - CurrentAudioTime`.
    * Only draw if `zDepth` is between 0 and 5000.
    * `drawList.AddLine(Project(-300, zDepth), Project(300, zDepth), white, 1);`
+
+
+### Mandatory TDD Generation 🧪
+- You **must** create parallel `[NEW] src/OmniSmith.Tests/` xUnit class tests for any new services or classes introduced here. You must write checks mapping edge bounds to ensure logic does not fail on edge inputs.

@@ -28,3 +28,7 @@ The guitar highway is 3D (perspective). ImGui is 2D. We need mathematical projec
 
 2. **Verify**:
    * Add a debug ImGui text overlay printing out `Project(0, 500)` just to verify the math evaluates correctly without NaN or Infinity.
+
+
+### Mandatory TDD Generation 🧪
+- You **must** create parallel `[NEW] src/OmniSmith.Tests/` xUnit class tests for any new services or classes introduced here. You must write checks mapping edge bounds to ensure logic does not fail on edge inputs.

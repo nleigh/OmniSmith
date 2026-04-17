@@ -14,5 +14,10 @@ A 2D vertical waterfall is often easier for sight-reading dense sections than th
 3. **Toggle UI**:
    - Add a button in the in-game HUD to switch modes instantly.
 
+
+
+### Mandatory TDD Generation 🧪
+- You **must** create parallel `[NEW] src/OmniSmith.Tests/` xUnit class tests for any new services or classes introduced here. You must write checks mapping edge bounds to ensure logic does not fail on edge inputs.
+
 ### Definition of Done
 The user can toggle between the 3D highway and a 2D vertical waterfall for any CDLC song. Both render modes remain in sync with the audio.

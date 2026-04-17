@@ -13,5 +13,10 @@ Advanced CDLC files contain metadata for fingers (1-4) and techniques (Bend, Sli
 3. **Hand Coloring**:
    - For "Two-Handed Tapping" sections, use the `HandShape` data to color the notes differently (e.g., Pink for tapping hand) based on Openthesia's hand coloring logic.
 
+
+
+### Mandatory TDD Generation 🧪
+- You **must** create parallel `[NEW] src/OmniSmith.Tests/` xUnit class tests for any new services or classes introduced here. You must write checks mapping edge bounds to ensure logic does not fail on edge inputs.
+
 ### Definition of Done
 The guitar highway displays technique icons and finger numbers. Notes change color during tapping sections to indicate the different hands, providing superior instructional feedback.

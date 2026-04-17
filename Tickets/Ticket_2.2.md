@@ -25,3 +25,7 @@ Implement the system that unzips `.psarc` files, finds the XML arrangement, and 
      - Read `ebeats > ebeat` and extract `time` to the beats list.
 3. **Integration**:
    * Have `RocksmithParser` return a fully populated `GuitarSong`.
+
+
+### Mandatory TDD Generation 🧪
+- You **must** create parallel `[NEW] src/OmniSmith.Tests/` xUnit class tests for any new services or classes introduced here. You must write checks mapping edge bounds to ensure logic does not fail on edge inputs.

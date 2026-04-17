@@ -14,5 +14,10 @@ Standard MIDI playback is rigid. "Session Mode" allows the engine to follow the 
 3. **Smooth Interpolation**:
    - Use a simple PID controller or smoothing function to ensure the speed changes are imperceptible.
 
+
+
+### Mandatory TDD Generation 🧪
+- You **must** create parallel `[NEW] src/OmniSmith.Tests/` xUnit class tests for any new services or classes introduced here. You must write checks mapping edge bounds to ensure logic does not fail on edge inputs.
+
 ### Definition of Done
 The backing band (accompaniment tracks) follows the user's tempo. If the user slows down to master a difficult transition, the band slows with them automatically.

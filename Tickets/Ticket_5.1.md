@@ -7,7 +7,7 @@ Slopsmith uses a high-performance SQLite DB for rapidly browsing thousands of CD
 ### Implementation Steps
 1. **Dependency Installation**: Ensure the `Microsoft.Data.Sqlite` NuGet package is included in `Openthesia.csproj`.
 2. **Database Management**: 
-   - Create `[NEW] Core/Database/LibraryDatabase.cs`.
+   - Create `[NEW] src/OmniSmith/Core/Database/LibraryDatabase.cs`.
    - On initialization, it should create or connect to `web_library.db` in `KnownFolders.RoamingAppData.Path`.
 3. **Table Schema**: Create the tables equivalent to Slopsmith's backend:
    ```sqlite
@@ -28,6 +28,11 @@ Slopsmith uses a high-performance SQLite DB for rapidly browsing thousands of CD
 4. **Data Operations**: Write C# helper methods inside `LibraryDatabase.cs` for:
    - `Put(filename, mtime, size, meta)` to upsert a song.
    - `QueryPage(q, page, size, sort, direction)` to return a paginated list of songs matching the schema.
+
+
+
+### Mandatory TDD Generation 🧪
+- You **must** create parallel `[NEW] src/OmniSmith.Tests/` xUnit class tests for any new services or classes introduced here. You must write checks mapping edge bounds to ensure logic does not fail on edge inputs.
 
 ### Definition of Done
 The application starts up and instantiates the SQLite database correctly on disk. The DB class is accessible globally via the Core layer.

@@ -27,3 +27,7 @@ To allow OmniSmith to play things other than MIDI (like Rocksmith audio), we mus
 
 3. **Verify**:
    Run `dotnet build`. There should be no breaking errors since we are just adding new files. Proceed to Ticket 1.2 to integrate it.
+
+
+### Mandatory TDD Generation 🧪
+- You **must** create parallel `[NEW] src/OmniSmith.Tests/` xUnit class tests for any new services or classes introduced here. You must write checks mapping edge bounds to ensure logic does not fail on edge inputs.

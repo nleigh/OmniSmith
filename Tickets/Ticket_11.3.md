@@ -12,7 +12,12 @@ Players often want to switch between guitar and piano without diving back into t
    - When the next item is triggered, call the `Async Domain Routing` logic from Milestone 4.
 3. **UI Integration**:
    - Add a "Add to Playlist" button in the `MidiBrowserWindow`.
-   - Create a `[NEW] Ui/Windows/PlaylistWindow.cs` to manage and launch these sets.
+   - Create a `[NEW] src/OmniSmith/Ui/Windows/PlaylistWindow.cs` to manage and launch these sets.
+
+
+
+### Mandatory TDD Generation 🧪
+- You **must** create parallel `[NEW] src/OmniSmith.Tests/` xUnit class tests for any new services or classes introduced here. You must write checks mapping edge bounds to ensure logic does not fail on edge inputs.
 
 ### Definition of Done
 The user can create a playlist containing both `.mid` and `.psarc` files. The engine transitions perfectly between instruments, loading the correct domain and renderer for each song in the sequence.

@@ -10,7 +10,7 @@ namespace OmniSmith.Ui.Windows;
 
 public class HomeWindow : ImGuiWindow
 {
-    private const string _title = "OmniSmith NATHAN";
+    private const string _title = "OmniSmith";
     private Vector2 _logoSize = new(250, 250);
     private Vector2 _btnHoverOffset = new(2);
     private Vector2 _titleShadowOffset = new(3);

@@ -26,7 +26,7 @@ class Program
         User32.SetProcessDPIAware();
 
         VeldridStartup.CreateWindowAndGraphicsDevice(
-            new WindowCreateInfo(50, 50, 1280, 720, WindowState.Maximized, $"OmniSmith Nathan {ProgramData.ProgramVersion}"),
+            new WindowCreateInfo(50, 50, 1280, 720, WindowState.Maximized, $"OmniSmith {ProgramData.ProgramVersion}"),
             new GraphicsDeviceOptions(false, null, true, ResourceBindingModel.Improved, true, true),
             out _window,
             out _gd);

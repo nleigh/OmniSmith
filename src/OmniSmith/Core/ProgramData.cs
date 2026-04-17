@@ -17,15 +17,18 @@ public static class ProgramData
     public static string SettingsPath = Path.Combine(KnownFolders.RoamingAppData.Path, "OmniSmith", "Settings.json");
     public static string HandsDataPath = Path.Combine(KnownFolders.RoamingAppData.Path, "OmniSmith\\HandsData");
 
+    public static LibraryScanner Scanner { get; private set; } = null!;
+
     public static void Initialize()
     {
+        Logger.Initialize();
         Directory.CreateDirectory(Path.Combine(KnownFolders.RoamingAppData.Path, "OmniSmith"));
         Directory.CreateDirectory(HandsDataPath);
         LoadSettings();
         GameStateManager.Initialize();
         LibraryDatabase.Instance = new LibraryDatabase();
-        var scanner = new LibraryScanner();
-        scanner.Start();
+        Scanner = new LibraryScanner();
+        Scanner.Start();
         ImGuiTheme.Init();
 
         // Always create the SoundFonts directory if it doesn't exist (this is mainly for when building from source)

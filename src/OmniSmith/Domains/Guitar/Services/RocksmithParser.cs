@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Xml.Linq;
 using OmniSmith.Domains.Guitar.Models;
+using OmniSmith.Core;
 using OmniSmith.Core.Interfaces;
 
 namespace OmniSmith.Domains.Guitar.Services;
@@ -28,14 +29,24 @@ public static class RocksmithParser
 
     public static GuitarSong ParsePsarc(string psarcPath)
     {
-        // Extract all files from the PSARC archive
-        var entries = PsarcReader.ExtractAll(psarcPath);
+        Logger.Info($"RocksmithParser: Starting parse of '{psarcPath}'");
+
+        // Only extract the XML arrangements and the WEM audio file
+        // This avoids materializing images, tones, and other large assets in memory
+        var entries = PsarcReader.ExtractByFilter(psarcPath, name => 
+            name.EndsWith(".xml", StringComparison.OrdinalIgnoreCase) || 
+            name.EndsWith(".wem", StringComparison.OrdinalIgnoreCase));
 
         // Find the lead arrangement XML
         var xmlEntry = FindArrangementXml(entries.Keys);
 
         if (xmlEntry == null)
+        {
+            Logger.Error($"RocksmithParser: No arrangement XML found inside {psarcPath}");
             throw new FileNotFoundException($"No arrangement XML found inside {psarcPath}");
+        }
+
+        Logger.Info($"RocksmithParser: Selecting arrangement XML: {xmlEntry}");
 
         // Parse the XML from memory
         using var xmlStream = new MemoryStream(entries[xmlEntry]);
@@ -47,6 +58,7 @@ public static class RocksmithParser
 
         if (wemEntry != null)
         {
+            Logger.Info($"RocksmithParser: Extracting and decoding audio: {wemEntry}");
             try
             {
                 string cacheDir = Path.Combine(
@@ -55,12 +67,17 @@ public static class RocksmithParser
 
                 string wavPath = WemDecoder.ConvertWemToWavAsync(entries[wemEntry], cacheDir).GetAwaiter().GetResult();
                 song.CachedWavPath = wavPath;
+                Logger.Info($"RocksmithParser: Audio ready at {wavPath}");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Warning: Audio extraction failed for {psarcPath}: {ex.Message}");
+                Logger.Error($"RocksmithParser: Audio extraction failed for {psarcPath}", ex);
                 // Song will still work visually, just without audio
             }
+        }
+        else
+        {
+            Logger.Warning("RocksmithParser: No .wem audio entry found in PSARC");
         }
 
         return song;

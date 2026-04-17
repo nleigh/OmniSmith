@@ -17,13 +17,21 @@ public class MidiBrowserWindow : ImGuiWindow
     private char? _scrollToLetter = null;
     private string _selectedFile = string.Empty;
     private bool _shouldScrollToSelected = false;
-    private int _currentPage = 0;
+    private int _currentPage = 0; // Legacy, kept for compatibility if needed
+    private List<OmniSmith.Core.Database.SongEntry> _songs = new();
+    private string _lastSearch = "___init___";
+    private int _lastSortCol = -1;
+    private int _lastSortDir = 0;
+    private bool _lastFavOnly = false;
+    private int _lastScannerCount = -1;
  
     // The library is now managed by LibraryScanner and LibraryDatabase
     private bool _showPlaylists = false;
     private string _newPlaylistName = string.Empty;
     private string _hoveredFile = string.Empty;
     private float _hoverTime = 0f;
+    private bool _isLoading = false;
+    private string _loadingError = string.Empty;
 
     public MidiBrowserWindow()
     {
@@ -31,28 +39,48 @@ public class MidiBrowserWindow : ImGuiWindow
         _active = false;
     }
  
-    private void PlaySong(string file, SongState songState)
+    private async void PlaySong(string file, SongState songState)
     {
-        PreviewManager.StopPreview(); // Stop any pending preview
-        GameStateManager.IncrementPlayCount(file);
+        if (_isLoading) return;
 
+        PreviewManager.StopPreview(); // Stop any pending preview
+        _loadingError = string.Empty;
+        
         string extension = System.IO.Path.GetExtension(file).ToLower();
         if (extension == ".mid")
         {
+            GameStateManager.IncrementPlayCount(file);
             MidiFileHandler.LoadMidiFile(file);
+            WindowsManager.SetWindow(Enums.Windows.ModeSelection);
         }
         else if (extension == ".psarc")
         {
-            // Use the async factory via fire-and-forget for now to avoid blocking the UI
-            _ = Task.Run(async () => {
-                try {
-                    var song = await SongFactory.LoadSongAsync(file);
-                    Application.CurrentSong?.Dispose();
-                    Application.CurrentSong = song;
-                } catch (Exception ex) {
-                    Console.WriteLine($"Error loading PSARC: {ex.Message}");
-                }
-            });
+            _isLoading = true;
+            GameStateManager.IncrementPlayCount(file);
+            
+            // Clear MIDI state so UI knows we're in Guitar mode
+            MidiFileData.MidiFile = null;
+            MidiFileData.Notes = null;
+            MidiFileData.FileName = "";
+
+            try 
+            {
+                var song = await SongFactory.LoadSongAsync(file);
+                Application.CurrentSong?.Dispose();
+                Application.CurrentSong = song;
+                
+                // Only navigate if loading succeeded
+                WindowsManager.SetWindow(Enums.Windows.ModeSelection);
+            } 
+            catch (Exception ex) 
+            {
+                _loadingError = $"Failed to load song: {ex.Message}";
+                Logger.Error($"Error loading PSARC: {file}", ex);
+            }
+            finally
+            {
+                _isLoading = false;
+            }
         }
 
         // we start and stop the playback so we can change the time before playing the song,
@@ -62,7 +90,6 @@ public class MidiBrowserWindow : ImGuiWindow
             MidiPlayer.Playback.Start();
             MidiPlayer.Playback.Stop();
         }
-        WindowsManager.SetWindow(Enums.Windows.ModeSelection);
     }
 
     private void RenderSearchBar()
@@ -117,6 +144,23 @@ public class MidiBrowserWindow : ImGuiWindow
                 ImGui.PopStyleVar(2);
 
                 ImGui.Text($"{FontAwesome6.Folder} MIDI File Browser");
+                
+                if (_isLoading)
+                {
+                    ImGui.SameLine();
+                    ImGui.TextColored(new Vector4(1, 1, 0, 1), "  Loading...");
+                }
+
+                if (!string.IsNullOrEmpty(_loadingError))
+                {
+                    ImGui.SameLine();
+                    ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1, 0, 0, 1));
+                    ImGui.Text($"  {_loadingError}");
+                    ImGui.PopStyleColor();
+                    if (ImGui.IsItemHovered()) ImGui.SetTooltip("Click to clear error");
+                    if (ImGui.IsItemClicked()) _loadingError = "";
+                }
+
                 ImGui.SameLine(ImGui.GetWindowWidth() - 350);
                 if (ImGui.Button($"{FontAwesome6.ListUl} Playlists", new Vector2(120, 30)))
                 {
@@ -125,19 +169,17 @@ public class MidiBrowserWindow : ImGuiWindow
                 ImGui.SameLine(ImGui.GetWindowWidth() - 220);
                 if (ImGui.Button($"{FontAwesome6.ArrowsRotate} Refresh Metadata", new Vector2(180, 30)))
                 {
-                    // Force file list refresh and re-setup watchers
-                    
-                    foreach (var midiPath in MidiPathsManager.MidiPaths)
-                    {
-                        if (Directory.Exists(midiPath))
-                        {
-                            var files = Directory.GetFiles(midiPath, "*.mid");
-                            foreach(var file in files)
-                            {
-                                MetadataService.QueueMetadataFetch(file);
-                            }
-                        }
-                    }
+                    // Full scan is handled by LibraryScanner automatically
+                    // But we can trigger a manual run if we want.
+                }
+
+                // Display scanner status if active
+                var scanner = ProgramData.Scanner;
+                if (scanner != null && scanner.CurrentStatus != "Idle")
+                {
+                    ImGui.SameLine();
+                    ImGui.TextColored(new Vector4(0.2f, 0.8f, 1.0f, 1.0f), 
+                        $"{FontAwesome6.Spinner} {scanner.CurrentStatus} ({scanner.TotalSongsFound} found)");
                 }
 
                 ImGui.Spacing();
@@ -227,241 +269,222 @@ public class MidiBrowserWindow : ImGuiWindow
                                     }
                                 }
                             }
-                        }
- 
-                        // Fetch paginated data from SQLite
-                        string sortCol = _sortColumnIndex switch {
-                            2 => "title",
-                            3 => "artist",
-                            4 => "album",
-                            5 => "duration",
-                            7 => "year",
-                            _ => "title"
-                        };
-                        string dir = _sortDirection == 1 ? "ASC" : "DESC";
-                        var songs = OmniSmith.Core.Database.LibraryDatabase.Instance.QueryPage(_searchBuffer, _currentPage, 50, sortCol, dir);
-                        songsReturned = songs.Count;
 
-                        foreach (var song in songs)
-                        {
-                            string file = song.Filename;
-                            string fileName = Path.GetFileName(file);
-                            
-                            SongState songState = GameStateManager.GetSongState(file);
-                            
-                            if (_favoritesOnly && !songState.IsFavorite)
-                                continue;
- 
-                            bool shouldScrollHere = false;
-                            
-                            if (_shouldScrollToSelected && file == _selectedFile)
+                            // Update Cache if needed
+                            string sortCol = _sortColumnIndex switch {
+                                2 => "title",
+                                3 => "artist",
+                                4 => "album",
+                                5 => "duration",
+                                7 => "year",
+                                _ => "title"
+                            };
+                            string dir = _sortDirection == 1 ? "ASC" : "DESC";
+
+                            int currentScannerCount = ProgramData.Scanner?.TotalSongsFound ?? 0;
+                            if (_lastSearch != _searchBuffer || _lastSortCol != _sortColumnIndex || 
+                                _lastSortDir != _sortDirection || _lastFavOnly != _favoritesOnly ||
+                                _lastScannerCount != currentScannerCount)
                             {
-                                shouldScrollHere = true;
-                                _shouldScrollToSelected = false;
-                            }
-                            else if (_scrollToLetter.HasValue)
-                            {
-                                string? compareStr = _sortColumnIndex switch {
-                                    2 => fileName,
-                                    3 => song.Artist,
-                                    4 => song.Album,
-                                    _ => fileName
-                                };
+                                var rawSongs = OmniSmith.Core.Database.LibraryDatabase.Instance.QueryPage(_searchBuffer, 0, -1, sortCol, dir);
                                 
-                                if (!string.IsNullOrEmpty(compareStr))
+                                // Filter by favorites if toggled
+                                if (_favoritesOnly)
                                 {
-                                    char firstChar = char.ToUpperInvariant(compareStr[0]);
-                                    if (_scrollToLetter == '#')
-                                    {
-                                        if (!char.IsLetter(firstChar)) shouldScrollHere = true;
-                                    }
-                                    else if (firstChar == _scrollToLetter.Value)
-                                    {
-                                        shouldScrollHere = true;
-                                    }
-                                }
-                            }
- 
-                            ImGui.TableNextRow(ImGuiTableRowFlags.None, 54f);
-                            if (shouldScrollHere)
-                            {
-                                ImGui.SetScrollHereY(0.5f);
-                                _scrollToLetter = null;
-                                _shouldScrollToSelected = false;
-                            }
-                            
-                            // Play Column
-                            ImGui.TableSetColumnIndex(0);
-                            ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 15f);
-                            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.529f, 0.784f, 0.325f, 1f));
-                            if (ImGui.Button($"{FontAwesome6.Play}##play_{file}"))
-                            {
-                                PlaySong(file, songState);
-                            }
-                            ImGui.PopStyleColor();
- 
-                            // Art Column
-                            ImGui.TableSetColumnIndex(1);
-                            nint texPtr = TextureCache.GetTexture(songState.ThumbnailPath);
-                            if (texPtr != IntPtr.Zero)
-                                ImGui.Image(texPtr, new Vector2(50, 50));
-                            else
-                            {
-                                ImGui.PushFont(FontController.Font16_Icon16);
-                                ImGui.Text($"{FontAwesome6.Image}");
-                                ImGui.PopFont();
-                            }
- 
-                            // Name Column
-                            ImGui.TableSetColumnIndex(2);
-                            ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 15f); // center vertically against large image
-                            if (ImGui.Selectable(fileName + "##" + file, _selectedFile == file, ImGuiSelectableFlags.SpanAllColumns | ImGuiSelectableFlags.AllowDoubleClick))
-                            {
-                                _selectedFile = file;
-                            }
-                            if (ImGui.IsItemHovered() && ImGui.IsMouseDoubleClicked(ImGuiMouseButton.Left))
-                            {
-                                PlaySong(file, songState);
-                            }
- 
-                            // Preview on hover (1.5s delay)
-                            if (ImGui.IsItemHovered())
-                            {
-                                if (_hoveredFile != file)
-                                {
-                                    _hoveredFile = file;
-                                    _hoverTime = 0f;
-                                    PreviewManager.StopPreview();
+                                    _songs = rawSongs.Where(s => GameStateManager.GetSongState(s.Filename).IsFavorite).ToList();
                                 }
                                 else
                                 {
-                                    _hoverTime += ImGui.GetIO().DeltaTime;
-                                    if (_hoverTime >= 1.5f && _hoverTime < 1.55f) 
-                                    {
-                                        PreviewManager.StartPreview(file);
-                                    }
+                                    _songs = rawSongs;
                                 }
+
+                                _lastSearch = _searchBuffer;
+                                _lastSortCol = _sortColumnIndex;
+                                _lastSortDir = _sortDirection;
+                                _lastFavOnly = _favoritesOnly;
+                                _lastScannerCount = currentScannerCount;
                             }
-                            else if (_hoveredFile == file)
+
+                            ImGuiListClipperPtr clipper = new ImGuiListClipperPtr(ImGuiNative.ImGuiListClipper_ImGuiListClipper());
+                            clipper.Begin(_songs.Count);
+
+                            while (clipper.Step())
                             {
-                                _hoveredFile = string.Empty;
-                                _hoverTime = 0f;
-                                PreviewManager.StopPreview();
-                            }
- 
-                            if (ImGui.BeginPopupContextItem($"context_{file}"))
-                            {
-                                if (ImGui.MenuItem($"{FontAwesome6.ArrowsRotate} Refresh metadata"))
+                                for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++)
                                 {
-                                    MetadataService.QueueMetadataFetch(file, true);
-                                }
-                                
-                                ImGui.Separator();
-                                
-                                if (ImGui.MenuItem($"{FontAwesome6.ListUl} Add to Queue"))
-                                {
-                                    SongQueueManager.AddToQueue(file);
-                                }
- 
-                                if (ImGui.BeginMenu($"{FontAwesome6.Plus} Add to Playlist"))
-                                {
-                                    if (GameStateManager.State.Playlists.Count == 0)
+                                    if (i < 0 || i >= _songs.Count) continue;
+                                    var song = _songs[i];
+                                    string file = song.Filename;
+                                    string fileName = Path.GetFileName(file);
+                                    SongState songState = GameStateManager.GetSongState(file);
+
+                                    bool shouldScrollHere = false;
+                                    if (_shouldScrollToSelected && file == _selectedFile)
                                     {
-                                        ImGui.TextDisabled("No playlists found");
+                                        shouldScrollHere = true;
+                                        _shouldScrollToSelected = false;
                                     }
-                                    foreach (var playlist in GameStateManager.State.Playlists)
+                                    else if (_scrollToLetter.HasValue)
                                     {
-                                        if (ImGui.MenuItem(playlist.Name))
+                                        string? compareStr = _sortColumnIndex switch {
+                                            2 => fileName,
+                                            3 => song.Artist,
+                                            4 => song.Album,
+                                            _ => fileName
+                                        };
+                                        
+                                        if (!string.IsNullOrEmpty(compareStr))
                                         {
-                                            if (!playlist.FilePaths.Contains(file))
+                                            char firstChar = char.ToUpperInvariant(compareStr[0]);
+                                            if (_scrollToLetter == '#')
                                             {
-                                                playlist.FilePaths.Add(file);
-                                                GameStateManager.SaveState();
+                                                if (!char.IsLetter(firstChar)) shouldScrollHere = true;
+                                            }
+                                            else if (firstChar == _scrollToLetter.Value)
+                                            {
+                                                shouldScrollHere = true;
                                             }
                                         }
                                     }
-                                    ImGui.EndMenu();
+
+                                    ImGui.TableNextRow(ImGuiTableRowFlags.None, 54f);
+                                    if (shouldScrollHere)
+                                    {
+                                        ImGui.SetScrollHereY(0.5f);
+                                        _scrollToLetter = null;
+                                        _shouldScrollToSelected = false;
+                                    }
+                                    
+                                    // Play Column
+                                    ImGui.TableSetColumnIndex(0);
+                                    ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 15f);
+                                    ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.529f, 0.784f, 0.325f, 1f));
+                                    if (ImGui.Button($"{FontAwesome6.Play}##play_{file}"))
+                                    {
+                                        PlaySong(file, songState);
+                                    }
+                                    ImGui.PopStyleColor();
+
+                                    // Art Column
+                                    ImGui.TableSetColumnIndex(1);
+                                    nint texPtr = TextureCache.GetTexture(songState.ThumbnailPath);
+                                    if (texPtr != IntPtr.Zero)
+                                        ImGui.Image(texPtr, new Vector2(50, 50));
+                                    else
+                                    {
+                                        ImGui.PushFont(FontController.Font16_Icon16);
+                                        ImGui.Text($"{FontAwesome6.Image}");
+                                        ImGui.PopFont();
+                                    }
+
+                                    // Name Column
+                                    ImGui.TableSetColumnIndex(2);
+                                    ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 15f);
+                                    if (ImGui.Selectable(fileName + "##" + file, _selectedFile == file, ImGuiSelectableFlags.SpanAllColumns | ImGuiSelectableFlags.AllowDoubleClick))
+                                    {
+                                        _selectedFile = file;
+                                    }
+                                    if (ImGui.IsItemHovered() && ImGui.IsMouseDoubleClicked(ImGuiMouseButton.Left))
+                                    {
+                                        PlaySong(file, songState);
+                                    }
+
+                                    if (ImGui.BeginPopupContextItem($"context_{file}"))
+                                    {
+                                        if (ImGui.MenuItem($"{FontAwesome6.ArrowsRotate} Refresh metadata"))
+                                        {
+                                            MetadataService.QueueMetadataFetch(file, true);
+                                        }
+                                        ImGui.Separator();
+                                        if (ImGui.MenuItem($"{FontAwesome6.ListUl} Add to Queue"))
+                                        {
+                                            SongQueueManager.AddToQueue(file);
+                                        }
+                                        if (ImGui.BeginMenu($"{FontAwesome6.Plus} Add to Playlist"))
+                                        {
+                                            if (GameStateManager.State.Playlists.Count == 0)
+                                                ImGui.TextDisabled("No playlists found");
+                                            foreach (var playlist in GameStateManager.State.Playlists)
+                                            {
+                                                if (ImGui.MenuItem(playlist.Name))
+                                                {
+                                                    if (!playlist.FilePaths.Contains(file))
+                                                    {
+                                                        playlist.FilePaths.Add(file);
+                                                        GameStateManager.SaveState();
+                                                    }
+                                                }
+                                            }
+                                            ImGui.EndMenu();
+                                        }
+                                        ImGui.EndPopup();
+                                    }
+
+                                    // Artist Column
+                                    ImGui.TableSetColumnIndex(3);
+                                    ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 15f);
+                                    ImGui.Text(song.Artist ?? "Unknown");
+
+                                    // Album Column
+                                    ImGui.TableSetColumnIndex(4);
+                                    ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 15f);
+                                    ImGui.Text(song.Album ?? "-");
+
+                                    // Length Column
+                                    ImGui.TableSetColumnIndex(5);
+                                    ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 15f);
+                                    if (song.Duration > 0)
+                                    {
+                                        TimeSpan t = TimeSpan.FromSeconds((int)song.Duration);
+                                        ImGui.Text($"{t.Minutes:D2}:{t.Seconds:D2}");
+                                    }
+                                    else ImGui.Text("-");
+
+                                    // BPM Column
+                                    ImGui.TableSetColumnIndex(6);
+                                    ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 15f);
+                                    ImGui.Text("-");
+
+                                    // Year Column
+                                    ImGui.TableSetColumnIndex(7);
+                                    ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 15f);
+                                    ImGui.Text(song.Year ?? "-");
+
+                                    // Key Column
+                                    ImGui.TableSetColumnIndex(8);
+                                    ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 15f);
+                                    ImGui.Text(song.Tuning ?? "-");
+
+                                    // Difficulty Column
+                                    ImGui.TableSetColumnIndex(9);
+                                    ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 15f);
+                                    ImGui.Text("-");
+
+                                    // Plays Column
+                                    ImGui.TableSetColumnIndex(10);
+                                    ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 15f);
+                                    ImGui.Text(songState.PlayCount.ToString());
+
+                                    // Fav Column
+                                    ImGui.TableSetColumnIndex(11);
+                                    ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 15f);
+                                    if (songState.IsFavorite) ImGui.PushStyleColor(ImGuiCol.Text, ImGuiTheme.HtmlToVec4("#EF4444"));
+                                    if (ImGui.Button($"{(songState.IsFavorite ? FontAwesome6.HeartCircleCheck : FontAwesome6.Heart)}##{file}"))
+                                    {
+                                        GameStateManager.SetFavorite(file, !songState.IsFavorite);
+                                    }
+                                    if (songState.IsFavorite) ImGui.PopStyleColor();
                                 }
-                                ImGui.EndPopup();
                             }
- 
-                            // Artist Column
-                            ImGui.TableSetColumnIndex(3);
-                            ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 15f);
-                            ImGui.Text(song.Artist ?? "Unknown");
- 
-                            // Album Column
-                            ImGui.TableSetColumnIndex(4);
-                            ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 15f);
-                            ImGui.Text(song.Album ?? "-");
- 
-                            // Length Column
-                            ImGui.TableSetColumnIndex(5);
-                            ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 15f);
-                            if (song.Duration > 0)
-                            {
-                                TimeSpan t = TimeSpan.FromSeconds((int)song.Duration);
-                                ImGui.Text($"{t.Minutes:D2}:{t.Seconds:D2}");
-                            }
-                            else
-                            {
-                                ImGui.Text("-");
-                            }
- 
-                            // BPM Column
-                            ImGui.TableSetColumnIndex(6);
-                            ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 15f);
-                            ImGui.Text("-"); // DB doesn't store BPM yet
- 
-                            // Year Column
-                            ImGui.TableSetColumnIndex(7);
-                            ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 15f);
-                            ImGui.Text(song.Year ?? "-");
- 
-                            // Key Column
-                            ImGui.TableSetColumnIndex(8);
-                            ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 15f);
-                            ImGui.Text(song.Tuning ?? "-");
- 
-                            // Difficulty Column
-                            ImGui.TableSetColumnIndex(9);
-                            ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 15f);
-                            ImGui.Text("-"); // DB doesn't store Difficulty yet
- 
-                            // Plays Column
-                            ImGui.TableSetColumnIndex(10);
-                            ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 15f);
-                            ImGui.Text(songState.PlayCount.ToString());
- 
-                            // Fav Column
-                            ImGui.TableSetColumnIndex(11);
-                            ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 15f);
-                            if (songState.IsFavorite) ImGui.PushStyleColor(ImGuiCol.Text, ImGuiTheme.HtmlToVec4("#EF4444"));
-                            if (ImGui.Button($"{(songState.IsFavorite ? FontAwesome6.HeartCircleCheck : FontAwesome6.Heart)}##{file}"))
-                            {
-                                GameStateManager.SetFavorite(file, !songState.IsFavorite);
-                            }
-                            if (songState.IsFavorite) ImGui.PopStyleColor();
+                            clipper.End();
                         }
- 
+
                         ImGui.EndTable();
                     }
                     
-                    ImGui.Spacing();
-                    if (_currentPage > 0)
-                    {
-                        if (ImGui.Button("< Prev Page")) _currentPage--;
-                        ImGui.SameLine();
-                    }
-                    ImGui.Text($"Page {_currentPage + 1}");
-                    if (songsReturned == 50)
-                    {
-                        ImGui.SameLine();
-                        if (ImGui.Button("Next Page >")) _currentPage++;
-                    }
-
                     ImGui.EndChild();
                 }
+
 
                 if (!string.IsNullOrEmpty(_selectedFile))
                 {

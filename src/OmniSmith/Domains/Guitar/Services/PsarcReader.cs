@@ -5,6 +5,7 @@ using System.IO.Compression;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
+using OmniSmith.Core;
 
 namespace OmniSmith.Domains.Guitar.Services;
 
@@ -37,6 +38,7 @@ public class PsarcReader
     /// </summary>
     public static Dictionary<string, byte[]> ExtractAll(string filePath)
     {
+        Logger.Info($"PSARC: Extracting all entries from '{filePath}'");
         var parsed = ParseHeader(filePath);
         var result = new Dictionary<string, byte[]>();
 
@@ -48,12 +50,12 @@ public class PsarcReader
             string name = parsed.Filenames[i - 1];
             try
             {
-                byte[] data = ExtractEntry(fs, parsed.Entries[i], parsed.BlockSizes, parsed.BlockSize);
+                byte[] data = ExtractEntry(fs, parsed.Entries[i], parsed.BlockSizes, parsed.BlockSize, name);
                 result[name] = data;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"PSARC: Failed to extract '{name}': {ex.Message}");
+                Logger.Error($"PSARC: Failed to extract '{name}'", ex);
             }
         }
 
@@ -189,21 +191,24 @@ public class PsarcReader
         }
 
         // 5. Extract manifest (entry 0 is always the filename list)
-        byte[] manifestData = ExtractEntry(fs, entries[0], blockSizes, blockSize);
+        Logger.Info($"PSARC: Extracting manifest (entry 0)...");
+        byte[] manifestData = ExtractEntry(fs, entries[0], blockSizes, blockSize, "MANIFEST");
         string[] filenames = Encoding.ASCII.GetString(manifestData)
             .Split('\n', StringSplitOptions.RemoveEmptyEntries)
             .Select(s => s.Trim('\r'))
             .ToArray();
 
+        Logger.Info($"PSARC: Found {filenames.Length} files in archive.");
         return new ParsedPsarc(entries, blockSizes, blockSize, filenames);
     }
 
-    private static byte[] ExtractEntry(Stream fs, TocEntry entry, List<uint> blockSizes, uint defaultBlockSize)
+    private static byte[] ExtractEntry(Stream fs, TocEntry entry, List<uint> blockSizes, uint defaultBlockSize, string context = "unknown")
     {
         if (entry.Length == 0)
             return Array.Empty<byte>();
 
         int numBlocks = (int)((entry.Length + defaultBlockSize - 1) / defaultBlockSize);
+        Logger.Info($"PSARC: [{context}] Extracting {entry.Length} bytes in {numBlocks} blocks (Offset: {entry.Offset})");
 
         using var output = new MemoryStream();
         fs.Position = (long)entry.Offset;
@@ -213,11 +218,11 @@ public class PsarcReader
             int blockIdx = (int)entry.ZIndex + b;
             uint compressedSize = blockIdx < blockSizes.Count ? blockSizes[blockIdx] : 0;
 
-            if (compressedSize == 0)
+            // In PSARC, compressedSize == 0 OR compressedSize == defaultBlockSize often means the block is uncompressed.
+            if (compressedSize == 0 || compressedSize == defaultBlockSize)
             {
-                // Block is stored uncompressed at full block size
-                long remaining = (long)entry.Length - output.Position;
-                int readSize = (int)Math.Min(remaining, defaultBlockSize);
+                long remainingTotal = (long)entry.Length - output.Position;
+                int readSize = (int)Math.Min(remainingTotal, defaultBlockSize);
                 byte[] raw = new byte[readSize];
                 fs.Read(raw, 0, readSize);
                 output.Write(raw, 0, readSize);
@@ -227,12 +232,41 @@ public class PsarcReader
                 byte[] compressed = new byte[compressedSize];
                 fs.Read(compressed, 0, (int)compressedSize);
 
-                // Use ZLibStream for proper zlib decompression (handles header + Adler-32 trailer)
+                // Check for zlib header (0x78)
                 if (compressed.Length > 2 && compressed[0] == 0x78)
                 {
-                    using var compMs = new MemoryStream(compressed);
-                    using var zlib = new ZLibStream(compMs, CompressionMode.Decompress);
-                    zlib.CopyTo(output);
+                    try
+                    {
+                        // Some PSARCs have malformed zlib trailers or missing termination blocks.
+                        using var compMs = new MemoryStream(compressed, 2, compressed.Length - 2);
+                        using var deflate = new DeflateStream(compMs, CompressionMode.Decompress);
+                        
+                        byte[] buffer = new byte[8192];
+                        int bytesRead;
+                        // Use a try-catch inside the read loop to salvage partial data if trailer is malformed
+                        while (true)
+                        {
+                            try
+                            {
+                                bytesRead = deflate.Read(buffer, 0, buffer.Length);
+                                if (bytesRead <= 0) break;
+                                output.Write(buffer, 0, bytesRead);
+                            }
+                            catch (Exception ex) when (ex.Message.Contains("complete block") || ex.Message.Contains("footer"))
+                            {
+                                // Salvage what we've already read
+                                Logger.Warning($"PSARC: [{context}] Decompression Salvaged {output.Length} bytes at block {b}: {ex.Message}");
+                                break;
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        if (output.Length == 0)
+                            output.Write(compressed, 0, compressed.Length);
+                        
+                        Logger.Error($"PSARC: [{context}] Decompression Failed at block {b}", ex);
+                    }
                 }
                 else
                 {

@@ -34,7 +34,11 @@ public class ModeSelectionWindow : ImGuiWindow
             if (CoreSettings.AnimatedBackground)
                 Drawings.RenderMatrixBackground();
 
-            RenderTitle(MidiFileData.FileName.Replace(".mid", string.Empty), 50 * FontController.DSF);
+            string titleText = !string.IsNullOrEmpty(MidiFileData.FileName) 
+                ? MidiFileData.FileName.Replace(".mid", string.Empty) 
+                : (Application.CurrentSong?.Title ?? "No song loaded");
+
+            RenderTitle(titleText, 50 * FontController.DSF);
 
             RenderIconWithText(FontAwesome6.Music, "Peacefully listen and visualize the piece", 0.1f, 2.5f);
             RenderIconWithText(FontAwesome6.Gamepad, "Playback will wait for the right note input", 0.36f, 2.5f);
@@ -112,52 +116,64 @@ public class ModeSelectionWindow : ImGuiWindow
         ScreenCanvasControls.SetEditMode(editMode);
         
         LeftRightData.S_IsRightNote.Clear();
-        foreach (var note in MidiFileData.Notes)
+        if (MidiFileData.Notes != null)
         {
-            LeftRightData.S_IsRightNote.Add(true);
+            foreach (var note in MidiFileData.Notes)
+            {
+                LeftRightData.S_IsRightNote.Add(true);
+            }
         }
         MidiEditing.ReadData();
 
         // Note index map for visual highlight lookup
         LeftRightData.S_NoteIndexMap = new Dictionary<string, List<int>>();
-        foreach (var (note, i) in MidiFileData.Notes.Select((note, i) => (note, i)))
+        if (MidiFileData.Notes != null)
         {
-            var key = $"{note.NoteNumber}_{note.Time}";
-            if (!LeftRightData.S_NoteIndexMap.TryGetValue(key, out var indexList))
+            foreach (var (note, i) in MidiFileData.Notes.Select((note, i) => (note, i)))
             {
-                indexList = new List<int>();
-                LeftRightData.S_NoteIndexMap[key] = indexList;
+                var key = $"{note.NoteNumber}_{note.Time}";
+                if (!LeftRightData.S_NoteIndexMap.TryGetValue(key, out var indexList))
+                {
+                    indexList = new List<int>();
+                    LeftRightData.S_NoteIndexMap[key] = indexList;
+                }
+                indexList.Add(i);
             }
-            indexList.Add(i);
         }
 
         // Mapping logic for hand muting in IOHandle
         LeftRightData.S_EventHandMap.Clear();
-        var allNotes = MidiFileData.Notes.ToList();
-        
-        var noteOnHandMap = new Dictionary<(int noteNumber, long time), bool>();
-        var noteOffHandMap = new Dictionary<(int noteNumber, long time), bool>();
-        
-        for (int j = 0; j < allNotes.Count; j++)
+        if (MidiFileData.Notes != null && MidiFileData.MidiFile != null)
         {
-            var n = allNotes[j];
-            bool isRight = (j < LeftRightData.S_IsRightNote.Count) ? LeftRightData.S_IsRightNote[j] : true;
-            noteOnHandMap[(n.NoteNumber, n.Time)] = isRight;
-            noteOffHandMap[(n.NoteNumber, n.Time + n.Length)] = isRight;
-        }
-
-        // Map the actual MidiEvent instances to hands
-        foreach (var timedEvent in MidiFileData.MidiFile.GetTimedEvents())
-        {
-            if (timedEvent.Event is NoteOnEvent noteOn)
+            var allNotes = MidiFileData.Notes.ToList();
+            
+            var noteOnHandMap = new Dictionary<(int noteNumber, long time), bool>();
+            var noteOffHandMap = new Dictionary<(int noteNumber, long time), bool>();
+            
+            for (int j = 0; j < allNotes.Count; j++)
             {
-                if (noteOnHandMap.TryGetValue((noteOn.NoteNumber, timedEvent.Time), out bool isRight))
-                    LeftRightData.S_EventHandMap[noteOn] = isRight;
+                var n = allNotes[j];
+                bool isRight = (j < LeftRightData.S_IsRightNote.Count) ? LeftRightData.S_IsRightNote[j] : true;
+                noteOnHandMap[(n.NoteNumber, n.Time)] = isRight;
+                noteOffHandMap[(n.NoteNumber, n.Time + n.Length)] = isRight;
             }
-            else if (timedEvent.Event is NoteOffEvent noteOff)
+
+            // Map the actual MidiEvent instances to hands
+            if (MidiFileData.MidiFile != null)
             {
-                if (noteOffHandMap.TryGetValue((noteOff.NoteNumber, timedEvent.Time), out bool isRight))
-                    LeftRightData.S_EventHandMap[noteOff] = isRight;
+                foreach (var timedEvent in MidiFileData.MidiFile.GetTimedEvents())
+                {
+                    if (timedEvent.Event is NoteOnEvent noteOn)
+                    {
+                        if (noteOnHandMap.TryGetValue((noteOn.NoteNumber, timedEvent.Time), out bool isRight))
+                            LeftRightData.S_EventHandMap[noteOn] = isRight;
+                    }
+                    else if (timedEvent.Event is NoteOffEvent noteOff)
+                    {
+                        if (noteOffHandMap.TryGetValue((noteOff.NoteNumber, timedEvent.Time), out bool isRight))
+                            LeftRightData.S_EventHandMap[noteOff] = isRight;
+                    }
+                }
             }
         }
 

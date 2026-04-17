@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using OmniSmith.Core;
 using OmniSmith.Core.Database;
 using OmniSmith.Domains.Guitar.Services;
 using OmniSmith.Settings;
@@ -15,6 +16,9 @@ namespace OmniSmith.Core.Database
         private readonly CancellationTokenSource _cts = new();
         private readonly LibraryDatabase _db;
         private readonly SemaphoreSlim _scanLock = new(1, 1);
+
+        public string CurrentStatus { get; private set; } = "Idle";
+        public int TotalSongsFound { get; private set; } = 0;
 
         public LibraryScanner()
         {
@@ -45,9 +49,11 @@ namespace OmniSmith.Core.Database
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"Library Scanner Error: {ex.Message}");
+                    CurrentStatus = $"Error: {ex.Message}";
+                    Logger.Error($"Library Scanner Loop Error", ex);
                 }
 
+                CurrentStatus = "Idle (Waiting 30s)";
                 try
                 {
                     await Task.Delay(TimeSpan.FromSeconds(30), token);
@@ -65,12 +71,25 @@ namespace OmniSmith.Core.Database
 
             try
             {
-                foreach (var path in MidiPathsManager.MidiPaths)
+                // Reorder paths to prioritize Rocksmith DLC
+                var paths = MidiPathsManager.MidiPaths.ToList();
+                var dlcPath = paths.FirstOrDefault(p => p.Contains("Rocksmith2014", StringComparison.OrdinalIgnoreCase) && p.EndsWith("dlc", StringComparison.OrdinalIgnoreCase));
+                if (dlcPath != null)
+                {
+                    paths.Remove(dlcPath);
+                    paths.Insert(0, dlcPath);
+                }
+
+                TotalSongsFound = 0;
+
+                foreach (var path in paths)
                 {
                     if (token.IsCancellationRequested) break;
                     if (!Directory.Exists(path)) continue;
 
-                    var files = Directory.EnumerateFiles(path, "*.*", SearchOption.AllDirectories)
+                    CurrentStatus = $"Scanning {Path.GetFileName(path)}...";
+                    
+                    var files = MidiPathsManager.SafeEnumerateFiles(path, token)
                         .Where(s => s.EndsWith(".psarc", StringComparison.OrdinalIgnoreCase) ||
                                     s.EndsWith(".mid", StringComparison.OrdinalIgnoreCase));
                                     
@@ -78,30 +97,40 @@ namespace OmniSmith.Core.Database
                     {
                         if (token.IsCancellationRequested) break;
 
-                        var info = new FileInfo(file);
-                        double mtime = new DateTimeOffset(info.LastWriteTimeUtc).ToUnixTimeSeconds();
-                        long size = info.Length;
+                        try
+                        {
+                            var info = new FileInfo(file);
+                            double mtime = new DateTimeOffset(info.LastWriteTimeUtc).ToUnixTimeSeconds();
+                            long size = info.Length;
 
-                        var existing = _db.GetMtimeSize(file);
-                        if (existing != null && existing.Value.Mtime == mtime && existing.Value.Size == size)
-                        {
-                            continue;
+                            var existing = _db.GetMtimeSize(file);
+                            if (existing != null && existing.Value.Mtime == mtime && existing.Value.Size == size)
+                            {
+                                TotalSongsFound++;
+                                continue;
+                            }
+                            
+                            CurrentStatus = $"Parsing {Path.GetFileName(file)}...";
+                            SongMeta meta;
+                            if (file.EndsWith(".psarc", StringComparison.OrdinalIgnoreCase))
+                            {
+                                meta = RocksmithParser.GetMetadata(file);
+                            }
+                            else
+                            {
+                                meta = new SongMeta(
+                                    Title: Path.GetFileNameWithoutExtension(file),
+                                    Artist: "", Album: "", Year: "", Duration: 0, Tuning: "", Arrangements: "", HasLyrics: false
+                                );
+                            }
+                            
+                            _db.Put(file, mtime, size, meta);
+                            TotalSongsFound++;
                         }
-                        
-                        SongMeta meta;
-                        if (file.EndsWith(".psarc", StringComparison.OrdinalIgnoreCase))
+                        catch (Exception ex)
                         {
-                            meta = RocksmithParser.GetMetadata(file);
+                            Logger.Error($"Error scanning file {file}", ex);
                         }
-                        else
-                        {
-                            meta = new SongMeta(
-                                Title: Path.GetFileNameWithoutExtension(file),
-                                Artist: "", Album: "", Year: "", Duration: 0, Tuning: "", Arrangements: "", HasLyrics: false
-                            );
-                        }
-                        
-                        _db.Put(file, mtime, size, meta);
                     }
                 }
             }

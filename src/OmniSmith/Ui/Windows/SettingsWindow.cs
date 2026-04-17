@@ -118,12 +118,12 @@ public class SettingsWindow : ImGuiWindow
         ImGui.Dummy(new(50));
 
         // MIDI PATHS
-        ImGui.Text($"MIDI PATHS {FontAwesome6.FolderOpen}");
+        ImGui.Text($"SONG PATHS {FontAwesome6.FolderOpen}");
         ImGui.Spacing();
 
         ImGui.BeginTable("Midi paths scan", 3, ImGuiTableFlags.PadOuterX | ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg);
         ImGui.TableSetupColumn("Path");
-        ImGui.TableSetupColumn("N° of midi", ImGuiTableColumnFlags.WidthFixed, 100);
+        ImGui.TableSetupColumn("Songs", ImGuiTableColumnFlags.WidthFixed, 100);
         ImGui.TableSetupColumn("##delete midi path", ImGuiTableColumnFlags.WidthFixed, 50);
         ImGui.TableHeadersRow();
 
@@ -135,16 +135,17 @@ public class SettingsWindow : ImGuiWindow
 
             ImGui.Text(path);
 
-            int nMidis = 0;
+            int nFiles = 0;
             foreach (var midiFile in Directory.GetFiles(path))
             {
-                if (Path.GetExtension(midiFile) == ".mid")
+                var ext = Path.GetExtension(midiFile).ToLower();
+                if (ext == ".mid" || ext == ".psarc")
                 {
-                    nMidis++;
+                    nFiles++;
                 }
             }
             ImGui.TableSetColumnIndex(1);
-            ImGui.Text(nMidis.ToString());
+            ImGui.Text(nFiles.ToString());
             ImGui.TableSetColumnIndex(2);
             ImGuiTheme.Style.Colors[(int)ImGuiCol.Text] = new Vector4(1, 0, 0.2f, 1);
             ImGui.PushFont(FontController.Font16_Icon12);

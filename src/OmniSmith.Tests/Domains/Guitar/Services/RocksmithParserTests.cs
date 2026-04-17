@@ -154,26 +154,24 @@ public class RocksmithParserTests : IDisposable
     }
 
     [Fact]
-    public void GetMetadata_ParsesBasicAttributes()
+    public void GetMetadata_WithInvalidFile_ReturnsDefaults()
     {
-        string psarcPath = Path.Combine(Path.GetTempPath(), "testsong.psarc");
-        string xmlPath = psarcPath.Replace(".psarc", "_lead.xml");
-        string xml = @"<song title='TestTitle' artist='TestArtist' album='TestAlbum' year='2020' tuning='Drop D' />";
-        File.WriteAllText(xmlPath, xml);
+        // GetMetadata now attempts real PSARC extraction.
+        // A non-PSARC file should gracefully return default metadata.
+        string fakePath = Path.Combine(Path.GetTempPath(), "fakesong.psarc");
+        File.WriteAllText(fakePath, "not a real psarc file");
 
         try
         {
-            var meta = RocksmithParser.GetMetadata(psarcPath);
+            var meta = RocksmithParser.GetMetadata(fakePath);
             
-            meta.Title.Should().Be("TestTitle");
-            meta.Artist.Should().Be("TestArtist");
-            meta.Album.Should().Be("TestAlbum");
-            meta.Year.Should().Be("2020");
-            meta.Tuning.Should().Be("Drop D");
+            meta.Title.Should().Be("fakesong");
+            meta.Artist.Should().Be("Unknown Artist");
+            meta.Album.Should().Be("Unknown Album");
         }
         finally
         {
-            File.Delete(xmlPath);
+            File.Delete(fakePath);
         }
     }
 }

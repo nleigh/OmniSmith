@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Xml.Linq;
 using OmniSmith.Domains.Guitar.Models;
@@ -11,42 +12,82 @@ public static class RocksmithParser
 {
     public static GuitarSong ParsePsarc(string psarcPath)
     {
-        // For the purpose of Ticket 2.2, we implement a mocked extraction
-        // that looks for a '_lead.xml' file in the same directory as the PSARC.
-        // In a full implementation, this would use a PSARC extractor.
-        string xmlPath = psarcPath.Replace(".psarc", "_lead.xml");
-        
-        if (!System.IO.File.Exists(xmlPath))
+        // Extract all files from the PSARC archive
+        var entries = PsarcReader.ExtractAll(psarcPath);
+
+        // Find the lead arrangement XML (prefer Lead, fall back to any arrangement)
+        var xmlEntry = entries.Keys
+            .Where(k => k.EndsWith(".xml", StringComparison.OrdinalIgnoreCase))
+            .Where(k => !k.Contains("vocal", StringComparison.OrdinalIgnoreCase)
+                     && !k.Contains("showlight", StringComparison.OrdinalIgnoreCase)
+                     && !k.Contains("tone", StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(k => k.Contains("lead", StringComparison.OrdinalIgnoreCase))
+            .ThenByDescending(k => k.Contains("combo", StringComparison.OrdinalIgnoreCase))
+            .FirstOrDefault();
+
+        if (xmlEntry == null)
+            throw new FileNotFoundException($"No arrangement XML found inside {psarcPath}");
+
+        // Parse the XML from memory
+        using var xmlStream = new MemoryStream(entries[xmlEntry]);
+        var song = ParseXml(xmlStream);
+
+        // Find the WEM audio file and decode it
+        var wemEntry = entries.Keys
+            .FirstOrDefault(k => k.EndsWith(".wem", StringComparison.OrdinalIgnoreCase));
+
+        if (wemEntry != null)
         {
-            throw new System.IO.FileNotFoundException($"Could not find arrangement XML at {xmlPath}. Please provide a raw _lead.xml for mocking.");
+            try
+            {
+                string cacheDir = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                    "OmniSmith", "Cache", "Audio");
+
+                string wavPath = WemDecoder.ConvertWemToWavAsync(entries[wemEntry], cacheDir).GetAwaiter().GetResult();
+                song.CachedWavPath = wavPath;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Warning: Audio extraction failed for {psarcPath}: {ex.Message}");
+                // Song will still work visually, just without audio
+            }
         }
 
-        var song = ParseXml(xmlPath);
-        song.CachedWavPath = psarcPath.Replace(".psarc", "_audio.wav");
         return song;
     }
 
     public static OmniSmith.Core.Database.SongMeta GetMetadata(string psarcPath)
     {
-        string xmlPath = psarcPath.Replace(".psarc", "_lead.xml");
-        if (!System.IO.File.Exists(xmlPath))
-        {
-            return new OmniSmith.Core.Database.SongMeta(
-                System.IO.Path.GetFileNameWithoutExtension(psarcPath),
-                "Unknown Artist", "Unknown Album", "Unknown Year", 0, "Standard", "Lead", false);
-        }
-
         try
         {
-            XDocument doc = XDocument.Load(xmlPath);
+            var entries = PsarcReader.ExtractAll(psarcPath);
+
+            var xmlEntry = entries.Keys
+                .Where(k => k.EndsWith(".xml", StringComparison.OrdinalIgnoreCase))
+                .Where(k => !k.Contains("vocal", StringComparison.OrdinalIgnoreCase)
+                         && !k.Contains("showlight", StringComparison.OrdinalIgnoreCase)
+                         && !k.Contains("tone", StringComparison.OrdinalIgnoreCase))
+                .OrderByDescending(k => k.Contains("lead", StringComparison.OrdinalIgnoreCase))
+                .FirstOrDefault();
+
+            if (xmlEntry == null)
+            {
+                return new OmniSmith.Core.Database.SongMeta(
+                    Path.GetFileNameWithoutExtension(psarcPath),
+                    "Unknown Artist", "Unknown Album", "Unknown Year", 0, "Standard", "Lead", false);
+            }
+
+            using var xmlStream = new MemoryStream(entries[xmlEntry]);
+            XDocument doc = XDocument.Load(xmlStream);
             XElement root = doc.Root ?? throw new InvalidOperationException();
 
             return new OmniSmith.Core.Database.SongMeta(
-                root.Attribute("title")?.Value ?? System.IO.Path.GetFileNameWithoutExtension(psarcPath),
+                root.Attribute("title")?.Value ?? Path.GetFileNameWithoutExtension(psarcPath),
                 root.Attribute("artist")?.Value ?? "Unknown Artist",
                 root.Attribute("album")?.Value ?? "Unknown Album",
                 root.Attribute("year")?.Value ?? "Unknown Year",
-                0.0, // Duration would require parsing all notes
+                0.0,
                 root.Attribute("tuning")?.Value ?? "Standard",
                 "Lead",
                 false
@@ -56,14 +97,20 @@ public static class RocksmithParser
         {
             Console.WriteLine($"Error parsing metadata for {psarcPath}: {ex.Message}");
             return new OmniSmith.Core.Database.SongMeta(
-                System.IO.Path.GetFileNameWithoutExtension(psarcPath),
+                Path.GetFileNameWithoutExtension(psarcPath),
                 "Unknown Artist", "Unknown Album", "Unknown Year", 0, "Standard", "Lead", false);
         }
     }
 
     public static GuitarSong ParseXml(string xmlPath)
     {
-        XDocument doc = XDocument.Load(xmlPath);
+        using var fs = File.OpenRead(xmlPath);
+        return ParseXml(fs);
+    }
+
+    public static GuitarSong ParseXml(Stream xmlStream)
+    {
+        XDocument doc = XDocument.Load(xmlStream);
         XElement root = doc.Root ?? throw new InvalidOperationException("Invalid XML: Root element not found.");
 
         GuitarSong song = new GuitarSong();

@@ -138,6 +138,13 @@ public class MidiBrowserWindow : ImGuiWindow
             ImGui.PushStyleVar(ImGuiStyleVar.ChildBorderSize, 2f);
             ImGui.PushStyleVar(ImGuiStyleVar.ChildRounding, 10f);
             ImGui.SetNextWindowPos(new Vector2((_io.DisplaySize.X - _io.DisplaySize.X / 1.2f) / 2, ImGuiUtils.FixedSize(new Vector2(120)).Y));
+            
+            // Render Build Date in corner
+            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1, 1, 1, 0.4f));
+            var buildText = $"Build: {ProgramData.BuildTimestamp}";
+            var textSize = ImGui.CalcTextSize(buildText);
+            ImGui.GetForegroundDrawList().AddText(new Vector2(_io.DisplaySize.X - textSize.X - 20, _io.DisplaySize.Y - textSize.Y - 20), 0x66FFFFFF, buildText);
+            ImGui.PopStyleColor();
             Vector2 containerSize = _io.DisplaySize / 1.2f;
             if (ImGui.BeginChild("Midi browser container", containerSize, ImGuiChildFlags.AlwaysUseWindowPadding | ImGuiChildFlags.Border))
             {

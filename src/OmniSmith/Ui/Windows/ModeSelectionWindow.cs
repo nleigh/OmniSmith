@@ -115,6 +115,13 @@ public class ModeSelectionWindow : ImGuiWindow
         ScreenCanvasControls.SetLearningMode(learningMode);
         ScreenCanvasControls.SetEditMode(editMode);
         
+        // Skip MIDI-specific logic for GuitarSongs
+        if (Application.CurrentSong is OmniSmith.Domains.Guitar.GuitarSong)
+        {
+            WindowsManager.SetWindow(Enums.Windows.PlayMode);
+            return;
+        }
+
         LeftRightData.S_IsRightNote.Clear();
         if (MidiFileData.Notes != null)
         {

@@ -13,7 +13,7 @@ public static class Logger
 
     static Logger()
     {
-        _logPath = Path.Combine(KnownFolders.RoamingAppData.Path, "OmniSmith", "OmniSmith.log");
+        _logPath = Path.Combine(ProgramData.AppDir, "OmniSmith.log");
     }
 
     public static void Initialize()

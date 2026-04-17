@@ -48,6 +48,9 @@ public class Application
 
     public void OnUpdate()
     {
+        // Update active song logic (audio sync, highway time, etc)
+        Application.CurrentSong?.Update(MidiPlayer.Timer);
+
         if (MidiPlayer.ShouldAdvanceQueue)
         {
             MidiPlayer.ShouldAdvanceQueue = false;

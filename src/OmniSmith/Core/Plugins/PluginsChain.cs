@@ -103,13 +103,13 @@ public class PluginsChain : ISampleProvider
         float[] tempBuffer = new float[count];
 
         // Copy the current buffer data to the temporary buffer
-        Array.Copy(buffer, offset, tempBuffer, 0, samplesRead);
+        System.Array.Copy(buffer, offset, tempBuffer, 0, samplesRead);
 
         // Process the data through the plugin
         plugin.Process(tempBuffer, tempBuffer, samplesRead);
 
         // Copy the processed data back to the original buffer
-        Array.Copy(tempBuffer, 0, buffer, offset, samplesRead);
+        System.Array.Copy(tempBuffer, 0, buffer, offset, samplesRead);
     }
 
     public int Read(float[] buffer, int offset, int count)

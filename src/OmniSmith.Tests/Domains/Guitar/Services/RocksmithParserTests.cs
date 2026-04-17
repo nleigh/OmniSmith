@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Xml.Linq;
+using System.Text;
 using OmniSmith.Domains.Guitar.Models;
 using OmniSmith.Domains.Guitar.Services;
 using Xunit;
@@ -36,7 +36,7 @@ public class RocksmithParserTests : IDisposable
     {
         // Arrange
         string xml = @"
-        <song>
+        <song version='10'>
             <levels>
                 <level difficulty='0'>
                     <notes count='2'>
@@ -49,7 +49,8 @@ public class RocksmithParserTests : IDisposable
         CreateTestXml(xml);
 
         // Act
-        var song = RocksmithParser.ParseXml(_tempXmlPath);
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(xml));
+        var song = RocksmithParser.ParseXmlToSong(stream);
 
         // Assert
         song.Notes.Should().HaveCount(2);
@@ -57,7 +58,7 @@ public class RocksmithParserTests : IDisposable
         var note1 = song.Notes[0];
         note1.Time.Should().Be(1.0f);
         note1.Techniques.Should().HaveFlag(NoteTechnique.Bend);
-        note1.BendValue.Should().Be(0.5f);
+        note1.BendValue.Should().Be(1.0f);
 
         var note2 = song.Notes[1];
         note2.Techniques.Should().HaveFlag(NoteTechnique.Slide);
@@ -69,7 +70,7 @@ public class RocksmithParserTests : IDisposable
     {
         // Arrange
         string xml = @"
-        <song>
+        <song version='10'>
             <levels>
                 <level difficulty='0'>
                     <notes count='1'><note time='1.0' string='0' fret='1' sustain='0.1' /></notes>
@@ -88,7 +89,8 @@ public class RocksmithParserTests : IDisposable
         CreateTestXml(xml);
 
         // Act
-        var song = RocksmithParser.ParseXml(_tempXmlPath);
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(xml));
+        var song = RocksmithParser.ParseXmlToSong(stream);
 
         // Assert
         song.Notes.Should().HaveCount(1);
@@ -100,7 +102,7 @@ public class RocksmithParserTests : IDisposable
     {
         // Arrange
         string xml = @"
-        <song>
+        <song version='10'>
             <chordTemplates>
                 <chordTemplate chordName='G Major' fret0='3' fret1='2' fret2='0' fret3='0' fret4='3' fret5='3' />
             </chordTemplates>
@@ -115,7 +117,8 @@ public class RocksmithParserTests : IDisposable
         CreateTestXml(xml);
 
         // Act
-        var song = RocksmithParser.ParseXml(_tempXmlPath);
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(xml));
+        var song = RocksmithParser.ParseXmlToSong(stream);
 
         // Assert
         song.Chords.Should().HaveCount(1);
@@ -127,7 +130,7 @@ public class RocksmithParserTests : IDisposable
     {
         // Arrange
         string xml = @"
-        <song>
+        <song version='10'>
             <levels>
                 <level difficulty='0'>
                     <notes count='1'>
@@ -139,7 +142,8 @@ public class RocksmithParserTests : IDisposable
         CreateTestXml(xml);
 
         // Act
-        var song = RocksmithParser.ParseXml(_tempXmlPath);
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(xml));
+        var song = RocksmithParser.ParseXmlToSong(stream);
 
         // Assert
         song.Notes[0].Techniques.Should().NotHaveFlag(NoteTechnique.Bend);
@@ -177,16 +181,15 @@ public class RocksmithParserTests : IDisposable
     [Fact]
     public void GetMetadataFromXml_ParsesAttributes()
     {
-        string xml = @"<song title='TestTitle' artist='TestArtist' album='TestAlbum' year='2020' tuning='Drop D' />";
-        using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(xml));
+        string xml = @"<song version='10' title='TestTitle' artist='TestArtist' album='TestAlbum' year='2020' tuning='Drop D' />";
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(xml));
+        var arrangement = RocksmithParser.ParseXml(stream);
 
-        var meta = RocksmithParser.GetMetadataFromXml(stream, "fallback.psarc");
-
-        meta.Title.Should().Be("TestTitle");
-        meta.Artist.Should().Be("TestArtist");
-        meta.Album.Should().Be("TestAlbum");
-        meta.Year.Should().Be("2020");
-        meta.Tuning.Should().Be("Drop D");
+        arrangement.MetaData.Title.Should().Be("TestTitle");
+        arrangement.MetaData.ArtistName.Should().Be("TestArtist");
+        arrangement.MetaData.AlbumName.Should().Be("TestAlbum");
+        arrangement.MetaData.AlbumYear.Should().Be(2020);
+        arrangement.MetaData.Tuning.ToString().Should().Be("Drop D");
     }
 
     [Fact]

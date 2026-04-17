@@ -1531,10 +1531,22 @@ public class ScreenCanvas
 
     private static void DrawPlayModeControls()
     {
-        ImGui.SetNextWindowPos(new Vector2(ImGui.GetIO().DisplaySize.X / 2 - ImGuiUtils.FixedSize(new Vector2(110)).X, CanvasPos.Y + ImGuiUtils.FixedSize(new Vector2(50)).Y));
-        if (ImGui.BeginChild("Player controls", ImGuiUtils.FixedSize(new Vector2(220, 50)), ImGuiChildFlags.None, ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse))
+        ImGui.SetNextWindowPos(new Vector2(ImGui.GetIO().DisplaySize.X / 2 - ImGuiUtils.FixedSize(new Vector2(165)).X, CanvasPos.Y + ImGuiUtils.FixedSize(new Vector2(50)).Y));
+        if (ImGui.BeginChild("Player controls", ImGuiUtils.FixedSize(new Vector2(330, 50)), ImGuiChildFlags.None, ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse))
         {
             var recordColor = MidiRecording.IsRecording() ? new Vector4(1, 0, 0, 1) : Vector4.One;
+
+            // PLAY / PAUSE BUTTON
+            ImGui.PushFont(FontController.Font16_Icon16);
+            var playIcon = MidiPlayer.IsTimerRunning ? FontAwesome6.Pause : FontAwesome6.Play;
+            if (ImGui.Button($"{playIcon}##play_pause", new(ImGuiUtils.FixedSize(new Vector2(50)).X, ImGui.GetWindowSize().Y)) 
+                || (ImGui.IsKeyPressed(ImGuiKey.Space) && !ImGui.GetIO().WantTextInput))
+            {
+                if (MidiPlayer.IsTimerRunning) MidiPlayer.StopTimer();
+                else MidiPlayer.StartTimer();
+            }
+            ImGui.PopFont();
+            ImGui.SameLine();
 
             // RECORD BUTTON
             ImGui.PushFont(FontController.Font16_Icon16);
@@ -1545,6 +1557,18 @@ public class ScreenCanvas
             }
             ImGuiTheme.Style.Colors[(int)ImGuiCol.Text] = Vector4.One;
             ImGui.SameLine();
+
+            // REWIND / RESET BUTTON
+            ImGui.PushFont(FontController.Font16_Icon16);
+            if (ImGui.Button($"{FontAwesome6.RotateLeft}", new(ImGuiUtils.FixedSize(new Vector2(50)).X, ImGui.GetWindowSize().Y)))
+            {
+                MidiPlayer.Timer = 0;
+                MidiPlayer.Seconds = 0;
+                if (MidiPlayer.Playback != null) MidiPlayer.Playback.MoveToStart();
+            }
+            ImGui.PopFont();
+            ImGui.SameLine();
+            
             // STOP BUTTON
             ImGuiTheme.Style.Colors[(int)ImGuiCol.Text] = new(0.70f, 0.22f, 0.22f, 1);
             if (ImGui.Button($"{FontAwesome6.Stop}", new(ImGuiUtils.FixedSize(new Vector2(50)).X, ImGui.GetWindowSize().Y)))

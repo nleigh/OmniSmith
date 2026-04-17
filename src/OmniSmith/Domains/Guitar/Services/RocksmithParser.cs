@@ -2,15 +2,92 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Xml.Linq;
+using System.Xml;
+using System.Xml.Serialization;
+using Rocksmith2014.XML;
+using System.Text.RegularExpressions;
 using OmniSmith.Domains.Guitar.Models;
 using OmniSmith.Core;
-using OmniSmith.Core.Interfaces;
+using OmniSmith.Core.Database;
 
 namespace OmniSmith.Domains.Guitar.Services;
 
 public static class RocksmithParser
 {
+    public static InstrumentalArrangement ParseXml(Stream stream)
+    {
+        // Many CDLC files contain null bytes, invalid characters, or structural malformations.
+        using var reader = new StreamReader(stream, System.Text.Encoding.UTF8, true);
+        string xml = reader.ReadToEnd();
+        
+        // 1. Character-level sanitization (strip nulls/control chars)
+        xml = new string(xml.Where(c => c == '\n' || c == '\r' || c == '\t' || (c >= 32 && c != 65534 && c != 65535)).ToArray());
+
+        // 2. Structural healing (fix common attribute mistakes)
+        xml = HealXml(xml);
+
+        var arrangement = new InstrumentalArrangement();
+        var settings = new XmlReaderSettings
+        {
+            CheckCharacters = false,
+            IgnoreWhitespace = true,
+            ValidationType = ValidationType.None
+        };
+
+        try
+        {
+            using var xmlReader = XmlReader.Create(new StringReader(xml), settings);
+            xmlReader.MoveToContent();
+            ((IXmlSerializable)arrangement).ReadXml(xmlReader);
+            
+            int totalNotes = arrangement.Levels.Sum(l => l.Notes.Count) + (arrangement.TranscriptionTrack?.Notes.Count ?? 0);
+            Logger.Info($"RocksmithParser: XML Parsed. Title='{arrangement.MetaData?.Title}', Levels={arrangement.Levels.Count}, TotalNotes={totalNotes}");
+            
+            return arrangement;
+        }
+        catch (XmlException ex)
+        {
+            // Log a snippet around the failure point for analysis
+            int pos = Math.Max(0, ex.LinePosition - 100);
+            string snippet = "N/A";
+            try 
+            {
+                // Find line content
+                var lines = xml.Split('\n');
+                if (ex.LineNumber > 0 && ex.LineNumber <= lines.Length)
+                {
+                    string targetLine = lines[ex.LineNumber - 1];
+                    int start = Math.Max(0, ex.LinePosition - 50);
+                    int length = Math.Min(100, targetLine.Length - start);
+                    snippet = targetLine.Substring(start, length);
+                }
+            } catch { }
+
+            Logger.Error($"RocksmithParser: XML Error at L{ex.LineNumber}, P{ex.LinePosition}. Snippet: ...{snippet}...");
+            throw;
+        }
+    }
+
+    private static string HealXml(string xml)
+    {
+        // Fix spaces around equals in attributes: attr = "val" -> attr="val"
+        // Some CDLC tools generate XML with extra spaces that strict parsers dislike
+        xml = Regex.Replace(xml, @"(\w+)\s+=\s*""", "$1=\"");
+        xml = Regex.Replace(xml, @"(\w+)\s*=\s+""", "$1=\"");
+        
+        // Fix missing quotes in version or other header attributes if they occur
+        // xml = Regex.Replace(xml, @"version=(\d+)", "version=\"$1\"");
+        
+        return xml;
+    }
+
+    public static GuitarSong ParseXmlToSong(Stream stream)
+    {
+        var arrangement = ParseXml(stream);
+        Logger.Info($"RocksmithParser: Arrangement loaded. Levels: {arrangement.Levels.Count}, HasTranscription: {arrangement.TranscriptionTrack != null}");
+        return MapArrangementToSong(arrangement);
+    }
+
     /// <summary>
     /// Selects the best arrangement XML entry name from a collection of filenames.
     /// Prefers Lead, then Combo, filtering out vocals/showlights/tones.
@@ -31,318 +108,161 @@ public static class RocksmithParser
     {
         Logger.Info($"RocksmithParser: Starting parse of '{psarcPath}'");
 
-        // Only extract the XML arrangements and the WEM audio file
-        // This avoids materializing images, tones, and other large assets in memory
         var entries = PsarcReader.ExtractByFilter(psarcPath, name => 
             name.EndsWith(".xml", StringComparison.OrdinalIgnoreCase) || 
             name.EndsWith(".wem", StringComparison.OrdinalIgnoreCase));
 
-        // Find the lead arrangement XML
-        var xmlEntry = FindArrangementXml(entries.Keys);
+        var xmlEntryName = FindArrangementXml(entries.Keys);
 
-        if (xmlEntry == null)
+        if (xmlEntryName == null)
         {
             Logger.Error($"RocksmithParser: No arrangement XML found inside {psarcPath}");
             throw new FileNotFoundException($"No arrangement XML found inside {psarcPath}");
         }
 
-        Logger.Info($"RocksmithParser: Selecting arrangement XML: {xmlEntry}");
+        Logger.Info($"RocksmithParser: Selecting arrangement XML: {xmlEntryName}");
 
-        // Parse the XML from memory
-        using var xmlStream = new MemoryStream(entries[xmlEntry]);
-        var song = ParseXml(xmlStream);
+        // Use Rocksmith2014.XML to load the arrangement from memory
+        using var xmlStream = new MemoryStream(entries[xmlEntryName]);
+        var arrangement = ParseXml(xmlStream);
+        GuitarSong song = MapArrangementToSong(arrangement);
 
         // Find the WEM audio file and decode it
-        var wemEntry = entries.Keys
-            .FirstOrDefault(k => k.EndsWith(".wem", StringComparison.OrdinalIgnoreCase));
-
+        var wemEntry = entries.Keys.FirstOrDefault(k => k.EndsWith(".wem", StringComparison.OrdinalIgnoreCase));
         if (wemEntry != null)
         {
-            Logger.Info($"RocksmithParser: Extracting and decoding audio: {wemEntry}");
             try
             {
-                string cacheDir = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                    "OmniSmith", "Cache", "Audio");
-
+                string cacheDir = Path.Combine(ProgramData.AppDir, "Cache", "Audio");
                 string wavPath = WemDecoder.ConvertWemToWavAsync(entries[wemEntry], cacheDir).GetAwaiter().GetResult();
                 song.CachedWavPath = wavPath;
-                Logger.Info($"RocksmithParser: Audio ready at {wavPath}");
             }
             catch (Exception ex)
             {
                 Logger.Error($"RocksmithParser: Audio extraction failed for {psarcPath}", ex);
-                // Song will still work visually, just without audio
             }
-        }
-        else
-        {
-            Logger.Warning("RocksmithParser: No .wem audio entry found in PSARC");
         }
 
         return song;
     }
 
-    public static OmniSmith.Core.Database.SongMeta GetMetadata(string psarcPath)
+    public static SongMeta GetMetadata(string psarcPath)
     {
         try
         {
-            // Only extract XML files — skip audio/images to keep scanning fast
-            var entries = PsarcReader.ExtractByFilter(psarcPath,
-                name => name.EndsWith(".xml", StringComparison.OrdinalIgnoreCase));
+            var entries = PsarcReader.ExtractByFilter(psarcPath, name => name.EndsWith(".xml", StringComparison.OrdinalIgnoreCase));
+            var xmlEntryName = FindArrangementXml(entries.Keys);
 
-            var xmlEntry = FindArrangementXml(entries.Keys);
-
-            if (xmlEntry == null)
+            if (xmlEntryName == null)
             {
-                return new OmniSmith.Core.Database.SongMeta(
-                    Path.GetFileNameWithoutExtension(psarcPath),
-                    "Unknown Artist", "Unknown Album", "Unknown Year", 0, "Standard", "Lead", false);
+                return new SongMeta(Path.GetFileNameWithoutExtension(psarcPath), "Unknown Artist", "Unknown Album", "Unknown Year", 0, "Standard", "Lead", false);
             }
 
-            using var xmlStream = new MemoryStream(entries[xmlEntry]);
-            return GetMetadataFromXml(xmlStream, psarcPath);
+            using var xmlStream = new MemoryStream(entries[xmlEntryName]);
+            var arrangement = ParseXml(xmlStream);
+
+            return new SongMeta(
+                arrangement.MetaData.Title,
+                arrangement.MetaData.ArtistName,
+                arrangement.MetaData.AlbumName,
+                arrangement.MetaData.AlbumYear.ToString(),
+                0.0,
+                arrangement.MetaData.Tuning?.ToString() ?? "Standard",
+                "Lead",
+                false
+            );
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error parsing metadata for {psarcPath}: {ex.Message}");
-            return new OmniSmith.Core.Database.SongMeta(
-                Path.GetFileNameWithoutExtension(psarcPath),
-                "Unknown Artist", "Unknown Album", "Unknown Year", 0, "Standard", "Lead", false);
+            Logger.Error($"RocksmithParser: Metadata error for {psarcPath}", ex);
+            return new SongMeta(Path.GetFileNameWithoutExtension(psarcPath), "Unknown Artist", "Unknown Album", "Unknown Year", 0, "Standard", "Lead", false);
         }
     }
 
-    /// <summary>
-    /// Extracts metadata (title, artist, album, etc.) from a Rocksmith arrangement XML stream.
-    /// </summary>
-    public static OmniSmith.Core.Database.SongMeta GetMetadataFromXml(Stream xmlStream, string fallbackName = "Unknown")
+    private static GuitarSong MapArrangementToSong(InstrumentalArrangement arrangement)
     {
-        XDocument doc = XDocument.Load(xmlStream);
-        XElement root = doc.Root ?? throw new InvalidOperationException("Invalid XML: no root element");
-
-        return new OmniSmith.Core.Database.SongMeta(
-            root.Attribute("title")?.Value ?? Path.GetFileNameWithoutExtension(fallbackName),
-            root.Attribute("artist")?.Value ?? "Unknown Artist",
-            root.Attribute("album")?.Value ?? "Unknown Album",
-            root.Attribute("year")?.Value ?? "Unknown Year",
-            0.0,
-            root.Attribute("tuning")?.Value ?? "Standard",
-            "Lead",
-            false
-        );
-    }
-
-    public static GuitarSong ParseXml(string xmlPath)
-    {
-        using var fs = File.OpenRead(xmlPath);
-        return ParseXml(fs);
-    }
-
-    public static GuitarSong ParseXml(Stream xmlStream)
-    {
-        XDocument doc = XDocument.Load(xmlStream);
-        XElement root = doc.Root ?? throw new InvalidOperationException("Invalid XML: Root element not found.");
-
-        GuitarSong song = new GuitarSong();
-
-        // 1. Parse Chord Templates
-        var chordTemplates = new List<ChordTemplate>();
-        var templatesContainer = root.Element("chordTemplates");
-        if (templatesContainer != null)
+        GuitarSong song = new GuitarSong
         {
-            foreach (var ct in templatesContainer.Elements("chordTemplate"))
+            Title = arrangement.MetaData.Title,
+            Artist = arrangement.MetaData.ArtistName,
+            TotalDuration = TimeSpan.FromSeconds(arrangement.MetaData.SongLength / 1000.0)
+        };
+
+        // Select the best level to use for the highway.
+        // CDLC files often have empty transcription tracks or redundant levels.
+        // We pick the level (or transcription track) that has the most combined notes and chords.
+        var allPossibleLevels = arrangement.Levels.ToList();
+        if (arrangement.TranscriptionTrack != null) allPossibleLevels.Add(arrangement.TranscriptionTrack);
+
+        var level = allPossibleLevels
+            .OrderByDescending(l => l.Notes.Count + l.Chords.Count)
+            .FirstOrDefault();
+
+        if (level == null) return song;
+
+        // Map Notes
+        foreach (var n in level.Notes)
+        {
+            song.Notes.Add(new GuitarNote
             {
-                chordTemplates.Add(new ChordTemplate
+                Time = n.Time / 1000.0f,
+                String = (int)n.String,
+                Fret = (int)n.Fret,
+                Duration = n.Sustain / 1000.0f,
+                Techniques = MapTechniques(n),
+                BendValue = n.MaxBend,
+                SlideTo = n.SlideTo
+            });
+        }
+
+        // Map Chords
+        foreach (var c in level.Chords)
+        {
+            var chordNotes = new List<GuitarNote>();
+            if (c.ChordNotes != null)
+            {
+                foreach (var cn in c.ChordNotes)
                 {
-                    Name = ct.Attribute("chordName")?.Value ?? string.Empty,
-                    Fingers = Enumerable.Range(0, 6).Select(i => _Int(ct, $"finger{i}", -1)).ToList(),
-                    Frets = Enumerable.Range(0, 6).Select(i => _Int(ct, $"fret{i}", -1)).ToList()
-                });
-            }
-        }
-
-        // 2. Handle Levels and Phrases (The "Slopsmith Merge" logic)
-        var levelsEl = root.Element("levels");
-        var phrasesEl = root.Element("phrases");
-        var phraseItersEl = root.Element("phraseIterations");
-
-        var allLevels = new Dictionary<int, XElement>();
-        if (levelsEl != null)
-        {
-            foreach (var level in levelsEl.Elements("level"))
-            {
-                allLevels[_Int(level, "difficulty")] = level;
-            }
-        }
-
-        List<GuitarNote> allNotes = new();
-        List<GuitarChord> allChords = new();
-        List<float> allAnchors = new();
-
-        if (allLevels.Count == 1)
-        {
-            CollectFromLevel(allLevels.Values.First(), 0.0f, float.MaxValue, allNotes, allChords, allAnchors, chordTemplates);
-        }
-        else if (phrasesEl != null && phraseItersEl != null && allLevels.Count > 0)
-        {
-            var phrases = phrasesEl.Elements("phrase").ToList();
-            var iterations = phraseItersEl.Elements("phraseIteration").ToList();
-
-            for (int i = 0; i < iterations.Count; i++)
-            {
-                int pid = _Int(iterations[i], "phraseId");
-                if (pid >= phrases.Count) continue;
-
-                int maxDiff = _Int(phrases[pid], "maxDifficulty");
-                if (!allLevels.TryGetValue(maxDiff, out var level))
-                {
-                    // Fallback to closest lower level
-                    level = allLevels.Where(kvp => kvp.Key <= maxDiff).OrderByDescending(kvp => kvp.Key).Select(kvp => kvp.Value).FirstOrDefault();
+                    chordNotes.Add(new GuitarNote
+                    {
+                        Time = cn.Time / 1000.0f,
+                        String = (int)cn.String,
+                        Fret = (int)cn.Fret,
+                        Duration = cn.Sustain / 1000.0f,
+                        Techniques = MapTechniques(cn)
+                    });
                 }
-
-                if (level == null) continue;
-
-                float tStart = _Float(iterations[i], "time");
-                float tEnd = (i + 1 < iterations.Count) ? _Float(iterations[i + 1], "time") : float.MaxValue;
-
-                CollectFromLevel(level, tStart, tEnd, allNotes, allChords, allAnchors, chordTemplates);
             }
-        }
-        else if (allLevels.Count > 0)
-        {
-            // Fallback: use level with most notes
-            var bestLevel = allLevels.Values.OrderByDescending(lv => 
-                (lv.Element("notes")?.Attribute("count") != null ? _Int(lv.Element("notes"), "count") : 0) +
-                (lv.Element("chords")?.Attribute("count") != null ? _Int(lv.Element("chords"), "count") : 0)
-            ).First();
-            CollectFromLevel(bestLevel, 0.0f, float.MaxValue, allNotes, allChords, allAnchors, chordTemplates);
-        }
 
-        song.Notes = allNotes.OrderBy(n => n.Time).ToList();
-        song.Chords = allChords.OrderBy(c => c.Time).ToList();
-        song.Anchors = allAnchors.OrderBy(a => a).ToList();
-
-        // 3. Parse Beats (ebeats)
-        var beatsContainer = root.Element("ebeats");
-        if (beatsContainer != null)
-        {
-            foreach (var eb in beatsContainer.Elements("ebeat"))
+            song.Chords.Add(new GuitarChord
             {
-                song.Beats.Add(_Float(eb, "time"));
-            }
+                Time = c.Time / 1000.0f,
+                ChordId = c.ChordId,
+                ChordNotes = chordNotes,
+                Name = arrangement.ChordTemplates[c.ChordId].Name
+            });
         }
+
+        // Map Anchors and Beats
+        song.Anchors = level.Anchors.Select(a => a.Time / 1000.0f).ToList();
+        song.Beats = arrangement.Ebeats.Select(b => b.Time / 1000.0f).ToList();
 
         return song;
     }
 
-    private static void CollectFromLevel(XElement level, float tStart, float tEnd, List<GuitarNote> notes, List<GuitarChord> chords, List<float> anchors, List<ChordTemplate> templates)
+    private static NoteTechnique MapTechniques(Rocksmith2014.XML.Note n)
     {
-        var notesContainer = level.Element("notes");
-        if (notesContainer != null)
-        {
-            foreach (var n in notesContainer.Elements("note"))
-            {
-                float t = _Float(n, "time");
-                if (t >= tStart && t < tEnd)
-                {
-                    notes.Add(ParseNote(n));
-                }
-            }
-        }
-
-        var chordsContainer = level.Element("chords");
-        if (chordsContainer != null)
-        {
-            foreach (var c in chordsContainer.Elements("chord"))
-            {
-                float t = _Float(c, "time");
-                if (t >= tStart && t < tEnd)
-                {
-                    var chordNotes = c.Elements("chordNote").Select(ParseNote).ToList();
-                    int cid = _Int(c, "chordId");
-
-                    if (chordNotes.Count == 0 && cid >= 0 && cid < templates.Count)
-                    {
-                        var ct = templates[cid];
-                        for (int s = 0; s < 6; s++)
-                        {
-                            if (ct.Frets[s] >= 0)
-                            {
-                                chordNotes.Add(new GuitarNote { Time = t, String = s, Fret = ct.Frets[s] });
-                            }
-                        }
-                    }
-
-                    chords.Add(new GuitarChord
-                    {
-                        Time = t,
-                        ChordId = cid,
-                        ChordNotes = chordNotes,
-                        Name = cid >= 0 && cid < templates.Count ? templates[cid].Name : string.Empty
-                    });
-                }
-            }
-        }
-
-        var anchorsContainer = level.Element("anchors");
-        if (anchorsContainer != null)
-        {
-            foreach (var a in anchorsContainer.Elements("anchor"))
-            {
-                float t = _Float(a, "time");
-                if (t >= tStart && t < tEnd)
-                {
-                    anchors.Add(t);
-                }
-            }
-        }
+        NoteTechnique t = NoteTechnique.None;
+        if (n.IsBend || n.MaxBend > 0) t |= NoteTechnique.Bend;
+        if (n.IsSlide) t |= NoteTechnique.Slide;
+        if (n.IsUnpitchedSlide) t |= NoteTechnique.UnpitchedSlide;
+        if (n.IsHammerOn) t |= NoteTechnique.HammerOn;
+        if (n.IsPullOff) t |= NoteTechnique.PullOff;
+        if (n.IsHarmonic) t |= NoteTechnique.Harmonic;
+        if (n.IsPinchHarmonic) t |= NoteTechnique.PinchHarmonic;
+        if (n.IsPalmMute) t |= NoteTechnique.PalmMute;
+        if (n.IsFretHandMute) t |= NoteTechnique.Mute;
+        if (n.IsTremolo) t |= NoteTechnique.Tremolo;
+        return t;
     }
-
-    private static GuitarNote ParseNote(XElement n)
-    {
-        var techniques = new NoteTechnique();
-        if (_Bool(n, "bend")) techniques |= NoteTechnique.Bend;
-        if (_Bool(n, "slideTo")) techniques |= NoteTechnique.Slide;
-        if (_Bool(n, "slideUnpitchTo")) techniques |= NoteTechnique.UnpitchedSlide;
-        if (_Bool(n, "hammerOn")) techniques |= NoteTechnique.HammerOn;
-        if (_Bool(n, "pullOff")) techniques |= NoteTechnique.PullOff;
-        if (_Bool(n, "harmonic")) techniques |= NoteTechnique.Harmonic;
-        if (_Bool(n, "harmonicPinch")) techniques |= NoteTechnique.PinchHarmonic;
-        if (_Bool(n, "palmMute")) techniques |= NoteTechnique.PalmMute;
-        if (_Bool(n, "mute")) techniques |= NoteTechnique.Mute;
-        if (_Bool(n, "tremolo")) techniques |= NoteTechnique.Tremolo;
-
-        return new GuitarNote
-        {
-            Time = _Float(n, "time"),
-            String = _Int(n, "string"),
-            Fret = _Int(n, "fret"),
-            Duration = _Float(n, "sustain"),
-            Techniques = techniques,
-            BendValue = _Float(n, "bendValue", _Float(n, "bend")),
-            SlideTo = _Int(n, "slideTo", -1)
-        };
-    }
-
-    private static float _Float(XElement el, string attr, float def = 0.0f) => 
-        float.TryParse(el.Attribute(attr)?.Value, out float res) ? res : def;
-
-    private static int _Int(XElement el, string attr, int def = 0) => 
-        int.TryParse(el.Attribute(attr)?.Value, out int res) ? res : def;
-
-    private static bool _Bool(XElement el, string attr)
-    {
-        var val = el.Attribute(attr)?.Value;
-        if (string.IsNullOrEmpty(val)) return false;
-        if (val == "0" || val == "0.0") return false;
-        if (float.TryParse(val, out float f) && f == 0.0f) return false;
-        return true;
-    }
-}
-
-public class ChordTemplate
-{
-    public string Name { get; set; } = string.Empty;
-    public List<int> Fingers { get; set; } = new();
-    public List<int> Frets { get; set; } = new();
 }

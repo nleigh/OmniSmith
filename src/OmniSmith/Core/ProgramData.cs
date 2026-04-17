@@ -14,14 +14,28 @@ public static class ProgramData
 {
     public const string ProgramVersion = "1.5.3";
     public static IntPtr LogoImage;
-    public static string SettingsPath = Path.Combine(KnownFolders.RoamingAppData.Path, "OmniSmith", "Settings.json");
-    public static string HandsDataPath = Path.Combine(KnownFolders.RoamingAppData.Path, "OmniSmith\\HandsData");
+    public static string AppDir = Path.Combine(KnownFolders.RoamingAppData.Path, "OmniSmith");
+    public static string SettingsPath = Path.Combine(AppDir, "Settings.json");
+    public static string HandsDataPath = Path.Combine(AppDir, "HandsData");
+    public static string BuildTimestamp { get; private set; } = "Unknown";
 
     public static LibraryScanner Scanner { get; private set; } = null!;
 
     public static void Initialize()
     {
+        try 
+        {
+            var assemblyPath = System.Reflection.Assembly.GetExecutingAssembly().Location;
+            if (string.IsNullOrEmpty(assemblyPath)) assemblyPath = Environment.ProcessPath;
+            if (!string.IsNullOrEmpty(assemblyPath))
+            {
+                BuildTimestamp = File.GetLastWriteTime(assemblyPath).ToString("yyyy-MM-dd HH:mm:ss");
+            }
+        } catch { }
+
         Logger.Initialize();
+        Logger.Info($"OmniSmith Build ID: {BuildTimestamp}");
+
         Directory.CreateDirectory(Path.Combine(KnownFolders.RoamingAppData.Path, "OmniSmith"));
         Directory.CreateDirectory(HandsDataPath);
         LoadSettings();

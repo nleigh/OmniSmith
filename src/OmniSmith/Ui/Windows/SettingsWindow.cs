@@ -136,7 +136,7 @@ public class SettingsWindow : ImGuiWindow
             ImGui.Text(path);
 
             int nFiles = 0;
-            foreach (var midiFile in Directory.GetFiles(path))
+            foreach (var midiFile in Directory.EnumerateFiles(path, "*.*", SearchOption.AllDirectories))
             {
                 var ext = Path.GetExtension(midiFile).ToLower();
                 if (ext == ".mid" || ext == ".psarc")

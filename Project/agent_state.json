@@ -16,34 +16,34 @@
       "tickets": [
                  { "id": "2.1", "status": "done", "file_reference": "Tickets/Ticket_2.1.md" },
          { "id": "2.2", "status": "done", "file_reference": "Tickets/Ticket_2.2.md" },
-        { "id": "2.3", "status": "incomplete", "file_reference": "Tickets/Ticket_2.3.md" }
+        { "id": "2.3", "status": "done", "file_reference": "Tickets/Ticket_2.3.md" }
       ]
     },
     {
       "id": 3,
       "title": "Guitar Rendering",
       "tickets": [
-        { "id": "3.1", "status": "incomplete", "file_reference": "Tickets/Ticket_3.1.md" },
-        { "id": "3.2", "status": "incomplete", "file_reference": "Tickets/Ticket_3.2.md" },
-        { "id": "3.3", "status": "incomplete", "file_reference": "Tickets/Ticket_3.3.md" },
-        { "id": "3.4", "status": "incomplete", "file_reference": "Tickets/Ticket_3.4.md" },
-        { "id": "3.5", "status": "incomplete", "file_reference": "Tickets/Ticket_3.5.md" }
+        { "id": "3.1", "status": "done", "file_reference": "Tickets/Ticket_3.1.md" },
+        { "id": "3.2", "status": "done", "file_reference": "Tickets/Ticket_3.2.md" },
+        { "id": "3.3", "status": "done", "file_reference": "Tickets/Ticket_3.3.md" },
+        { "id": "3.4", "status": "done", "file_reference": "Tickets/Ticket_3.4.md" },
+        { "id": "3.5", "status": "done", "file_reference": "Tickets/Ticket_3.5.md" }
       ]
     },
     {
       "id": 4,
       "title": "Integration",
       "tickets": [
-        { "id": "4.1", "status": "incomplete", "file_reference": "Tickets/Ticket_4.1.md" },
-        { "id": "4.2", "status": "incomplete", "file_reference": "Tickets/Ticket_4.2.md" }
+        { "id": "4.1", "status": "done", "file_reference": "Tickets/Ticket_4.1.md" },
+        { "id": "4.2", "status": "done", "file_reference": "Tickets/Ticket_4.2.md" }
       ]
     },
     {
       "id": 5,
       "title": "SQLite",
       "tickets": [
-        { "id": "5.1", "status": "incomplete", "file_reference": "Tickets/Ticket_5.1.md" },
-        { "id": "5.2", "status": "incomplete", "file_reference": "Tickets/Ticket_5.2.md" }
+        { "id": "5.1", "status": "done", "file_reference": "Tickets/Ticket_5.1.md" },
+        { "id": "5.2", "status": "done", "file_reference": "Tickets/Ticket_5.2.md" }
       ]
     },
     {

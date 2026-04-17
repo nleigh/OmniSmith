@@ -60,10 +60,10 @@ public class Application
                         var song = await SongFactory.LoadSongAsync(nextFile);
                         
                         // Ensure MIDI playback is synchronized with the song load
-                        if (song is PianoSong pianoSong)
-                        {
-                            MidiFileHandler.LoadMidiFile(pianoSong.MidiFile);
-                        }
+                            if (song is PianoSong pianoSong)
+                            {
+                                MidiFileHandler.LoadMidiFile(pianoSong.SongFile);
+                            }
 
                         Application.CurrentSong?.Dispose();
                         Application.CurrentSong = song;

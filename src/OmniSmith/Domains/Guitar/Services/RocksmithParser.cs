@@ -24,6 +24,41 @@ public static class RocksmithParser
         return ParseXml(xmlPath);
     }
 
+    public static OmniSmith.Core.Database.SongMeta GetMetadata(string psarcPath)
+    {
+        string xmlPath = psarcPath.Replace(".psarc", "_lead.xml");
+        if (!System.IO.File.Exists(xmlPath))
+        {
+            return new OmniSmith.Core.Database.SongMeta(
+                System.IO.Path.GetFileNameWithoutExtension(psarcPath),
+                "Unknown Artist", "Unknown Album", "Unknown Year", 0, "Standard", "Lead", false);
+        }
+
+        try
+        {
+            XDocument doc = XDocument.Load(xmlPath);
+            XElement root = doc.Root ?? throw new InvalidOperationException();
+
+            return new OmniSmith.Core.Database.SongMeta(
+                root.Attribute("title")?.Value ?? System.IO.Path.GetFileNameWithoutExtension(psarcPath),
+                root.Attribute("artist")?.Value ?? "Unknown Artist",
+                root.Attribute("album")?.Value ?? "Unknown Album",
+                root.Attribute("year")?.Value ?? "Unknown Year",
+                0.0, // Duration would require parsing all notes
+                root.Attribute("tuning")?.Value ?? "Standard",
+                "Lead",
+                false
+            );
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error parsing metadata for {psarcPath}: {ex.Message}");
+            return new OmniSmith.Core.Database.SongMeta(
+                System.IO.Path.GetFileNameWithoutExtension(psarcPath),
+                "Unknown Artist", "Unknown Album", "Unknown Year", 0, "Standard", "Lead", false);
+        }
+    }
+
     public static GuitarSong ParseXml(string xmlPath)
     {
         XDocument doc = XDocument.Load(xmlPath);
@@ -163,7 +198,8 @@ public static class RocksmithParser
                     {
                         Time = t,
                         ChordId = cid,
-                        ChordNotes = chordNotes
+                        ChordNotes = chordNotes,
+                        Name = cid >= 0 && cid < templates.Count ? templates[cid].Name : string.Empty
                     });
                 }
             }
@@ -204,7 +240,7 @@ public static class RocksmithParser
             Fret = _Int(n, "fret"),
             Duration = _Float(n, "sustain"),
             Techniques = techniques,
-            BendValue = _Float(n, "bend"),
+            BendValue = _Float(n, "bendValue", _Float(n, "bend")),
             SlideTo = _Int(n, "slideTo", -1)
         };
     }
@@ -215,8 +251,14 @@ public static class RocksmithParser
     private static int _Int(XElement el, string attr, int def = 0) => 
         int.TryParse(el.Attribute(attr)?.Value, out int res) ? res : def;
 
-    private static bool _Bool(XElement el, string attr) => 
-        el.Attribute(attr)?.Value != null && el.Attribute(attr).Value != "0";
+    private static bool _Bool(XElement el, string attr)
+    {
+        var val = el.Attribute(attr)?.Value;
+        if (string.IsNullOrEmpty(val)) return false;
+        if (val == "0" || val == "0.0") return false;
+        if (float.TryParse(val, out float f) && f == 0.0f) return false;
+        return true;
+    }
 }
 
 public class ChordTemplate

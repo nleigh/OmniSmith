@@ -14,6 +14,15 @@ You are working autonomously, step by step, picking up tasks from `Project/agent
 
 ## Key Architecture Principles
 * **No "Omni" God-Classes:** Keep domain logic isolated (Piano vs Guitar). Use the `IPlayableSong` interface for the main loop.
-* **ManagedBass for Audio:** Use the **ManagedBass** library for all audio playback, time-stretching, and FFT processing.
-* **Testing First:** Add unit tests to the `src/OmniSmith.Tests` project for core logic (math, parsing) as features are implemented.
+* **NAudio for Desktop Playback:** We utilize **NAudio** (`NAudio.Wave.AudioFileReader` and `WaveOutEvent`) for local playback on `GuitarSong` domains. NEVER use `ManagedBass` or obsolete audio tools.
 * **ImGui Native Rendering:** Utilize `ImGui.NET` for the 3D highway rendering via math-based perspective projection in C#.
+* **Zero Stub Policy:** NEVER output `throw new NotImplementedException();` or leave `TODO` stubs. Implement functions from start to finish securely, including valid error throwing logic when interacting with external binaries.
+
+## 🚨 Common Mistakes to Avoid (From Code Reviews)
+- **Audio Thread Locking:** Never assign a new `GuitarSong` backing track without first executing `.Dispose()` on the overarching `Application.CurrentSong`. Operating system hardware will fatally lock your application if 2 audio streams sync concurrently. Furthermore, verify you explicitly route `_waveOut?.Stop();` down through class `Dispose()` pipelines to prevent ghost audio.
+- **Async Spawning Completion Races:** If utilizing `System.Diagnostics.Process` closures, NEVER use `TaskCompletionSource` bound arbitrarily to `.Exited` event handles. You must enclose external runs using `using var process` combined explicitly sequentially traversing `await process.WaitForExitAsync()`. Catch `Win32Exceptions` dynamically if tools don't map to ENV PATH bounds. ALWAYS write code to capture and test `.ExitCode == 0` validation checking to prevent processing corrupted mock files safely.
+- **Screen Canvas Bypassing:** When configuring custom structural layout branching inside `Ui/ScreenCanvas.cs`, NEVER end an `if` tree block with an automatic early `return;`. This kills execution logic prematurely causing FPS counters, play-pause controls, global variables, and overlapping shared UI parameters to visibly disappear. Route exclusively around custom block requirements via `if-else` negative inversion bindings securely returning natural structural behavior bounds.
+
+## Test-Driven Execution (TDD)
+- **Mandatory Unit Testing:** Every task requiring `File IO`, database mutation checks, or executing external CLI commands demands the construction of internal XUnit validations within `src/OmniSmith.Tests/`.
+- Ensure you simulate/mock path failures utilizing testing bounds explicitly verifying application safety constraints won't throw unhandled bounds issues securely prior to completing your current payload branch.

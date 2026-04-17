@@ -21,14 +21,33 @@ public class WemDecoder
 
         await File.WriteAllBytesAsync(tempWemPath, wemData);
 
-        // TODO for Local Agent (Ticket 2.3):
         // Initialize a ProcessStartInfo to call "vgmstream-cli.exe"
-        // Arguments should be: $"-o \"{tempWavPath}\" \"{tempWemPath}\""
-        // Set UseShellExecute = false, CreateNoWindow = true
-        // Start the process and await Process.WaitForExitAsync()
-        // Delete the temporary .wem file to save disk space
-        // Return tempWavPath;
+        var tcs = new TaskCompletionSource<bool>();
+        var process = new Process
+        {
+            StartInfo = new ProcessStartInfo
+            {
+                FileName = "vgmstream-cli",
+                Arguments = $"-o \"{tempWavPath}\" \"{tempWemPath}\"",
+                UseShellExecute = false,
+                CreateNoWindow = true
+            },
+            EnableRaisingEvents = true
+        };
 
-        throw new NotImplementedException("Local Agent: Implement vgmstream-cli Process execution here.");
+        process.Exited += (sender, args) =>
+        {
+            tcs.SetResult(true);
+            process.Dispose();
+        };
+
+        process.Start();
+        await tcs.Task;
+
+        // Delete the temporary .wem file to save disk space
+        if (File.Exists(tempWemPath))
+            File.Delete(tempWemPath);
+
+        return tempWavPath;
     }
 }

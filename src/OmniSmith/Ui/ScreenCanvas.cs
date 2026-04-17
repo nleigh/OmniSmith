@@ -773,6 +773,13 @@ public class ScreenCanvas
         using (AutoFont font22 = new(FontController.GetFontOfSize(22)))
         {
             CanvasPos = ImGui.GetWindowPos();
+
+            if (Application.CurrentSong is OmniSmith.Domains.Guitar.GuitarSong guitarSong)
+            {
+                guitarSong.Draw(ImGui.GetWindowDrawList());
+                return;
+            }
+
             RenderGrid();
 
             if (CoreSettings.FpsCounter)

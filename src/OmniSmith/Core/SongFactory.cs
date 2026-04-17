@@ -19,7 +19,7 @@ public static class SongFactory
 
         if (extension == ".psarc")
         {
-            return RocksmithParser.ParsePsarc(filePath);
+            return await Task.Run(() => RocksmithParser.ParsePsarc(filePath));
         }
 
         throw new NotSupportedException($"Unsupported file extension: {extension}");

@@ -59,13 +59,28 @@ public class Application
                     try {
                         var song = await SongFactory.LoadSongAsync(nextFile);
                         
-                        // Ensure MIDI playback is synchronized with the song load
-                            if (song is PianoSong pianoSong)
-                            {
-                                MidiFileHandler.LoadMidiFile(pianoSong.SongFile);
-                            }
-
+                        // Dispose previous song first to release audio devices
                         Application.CurrentSong?.Dispose();
+                        Application.CurrentSong = null;
+
+                        // Ensure MIDI playback is cleared so it doesn't bleed into new Guitar bindings
+                        if (MidiPlayer.Playback != null)
+                        {
+                            try { MidiPlayer.Playback.Stop(); } catch { }
+                            MidiPlayer.Playback.Dispose();
+                            MidiPlayer.Playback = null!;
+                            MidiPlayer.StopTimer();
+                        }
+
+                        if (song is PianoSong pianoSong)
+                        {
+                            MidiFileHandler.LoadMidiFile(pianoSong.SongFile);
+                        }
+                        else if (song is OmniSmith.Domains.Guitar.GuitarSong guitarSong)
+                        {
+                            guitarSong.InitAudio();
+                        }
+
                         Application.CurrentSong = song;
                         
                         // Start audio/timer logic

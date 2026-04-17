@@ -21,14 +21,38 @@ public class WemDecoder
 
         await File.WriteAllBytesAsync(tempWemPath, wemData);
 
-        // TODO for Local Agent (Ticket 2.3):
-        // Initialize a ProcessStartInfo to call "vgmstream-cli.exe"
-        // Arguments should be: $"-o \"{tempWavPath}\" \"{tempWemPath}\""
-        // Set UseShellExecute = false, CreateNoWindow = true
-        // Start the process and await Process.WaitForExitAsync()
-        // Delete the temporary .wem file to save disk space
-        // Return tempWavPath;
+        try
+        {
+            using var process = new Process
+            {
+                StartInfo = new ProcessStartInfo
+                {
+                    FileName = "vgmstream-cli",
+                    Arguments = $"-o \"{tempWavPath}\" \"{tempWemPath}\"",
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                }
+            };
 
-        throw new NotImplementedException("Local Agent: Implement vgmstream-cli Process execution here.");
+            process.Start();
+            await process.WaitForExitAsync();
+
+            if (process.ExitCode != 0 || !File.Exists(tempWavPath))
+            {
+                throw new InvalidOperationException($"Failed to decode audio. vgmstream-cli exited with code {process.ExitCode}.");
+            }
+        }
+        catch (System.ComponentModel.Win32Exception)
+        {
+            throw new System.ComponentModel.Win32Exception("The vgmstream-cli tool was not found. Please ensure it is installed and available in your system PATH.");
+        }
+        finally
+        {
+            // Delete the temporary .wem file to save disk space
+            if (File.Exists(tempWemPath))
+                File.Delete(tempWemPath);
+        }
+
+        return tempWavPath;
     }
 }

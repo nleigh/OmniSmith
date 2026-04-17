@@ -26,13 +26,46 @@ public class GuitarSong : IPlayableSong
 
     public string? CachedWavPath { get; set; }
 
+    private NAudio.Wave.AudioFileReader? _audioFileReader;
+    private NAudio.Wave.WaveOutEvent? _waveOut;
+    private bool _isAudioInitialized = false;
+
     public GuitarSong()
     {
+    }
+
+    public void InitAudio()
+    {
+        if (string.IsNullOrEmpty(CachedWavPath) || !System.IO.File.Exists(CachedWavPath) || _isAudioInitialized)
+            return;
+
+        _audioFileReader = new NAudio.Wave.AudioFileReader(CachedWavPath);
+        _waveOut = new NAudio.Wave.WaveOutEvent();
+        _waveOut.Init(_audioFileReader);
+        _isAudioInitialized = true;
     }
 
     public void Update(float audioTimeMs)
     {
         _currentAudioTimeMs = audioTimeMs;
+
+        if (_waveOut != null && _audioFileReader != null)
+        {
+            if (MidiPlayer.IsTimerRunning && _waveOut.PlaybackState != NAudio.Wave.PlaybackState.Playing)
+            {
+                _waveOut.Play();
+            }
+            else if (!MidiPlayer.IsTimerRunning && _waveOut.PlaybackState == NAudio.Wave.PlaybackState.Playing)
+            {
+                _waveOut.Pause();
+            }
+            
+            // Re-sync if visually out of phase by more than 50ms
+            if (MidiPlayer.IsTimerRunning && Math.Abs(_audioFileReader.CurrentTime.TotalMilliseconds - audioTimeMs) > 50)
+            {
+                _audioFileReader.CurrentTime = TimeSpan.FromMilliseconds(audioTimeMs);
+            }
+        }
 
         if (SynthGuitarEnabled && MidiPlayer.SoundFontEngine != null)
         {
@@ -168,6 +201,14 @@ public class GuitarSong : IPlayableSong
 
     public void Dispose()
     {
+        _waveOut?.Stop();
+
+        _waveOut?.Dispose();
+        _waveOut = null;
+
+        _audioFileReader?.Dispose();
+        _audioFileReader = null;
+
         if (!string.IsNullOrEmpty(CachedWavPath) && System.IO.File.Exists(CachedWavPath))
         {
             try { System.IO.File.Delete(CachedWavPath); } catch { }

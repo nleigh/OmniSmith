@@ -773,7 +773,20 @@ public class ScreenCanvas
         using (AutoFont font22 = new(FontController.GetFontOfSize(22)))
         {
             CanvasPos = ImGui.GetWindowPos();
-            RenderGrid();
+
+            if (Application.CurrentSong is OmniSmith.Domains.Guitar.GuitarSong guitarSong)
+            {
+                guitarSong.Draw(ImGui.GetWindowDrawList());
+            }
+            else
+            {
+                RenderGrid();
+
+                if (playMode)
+                    DrawInputNotes();
+                else
+                    DrawPlaybackNotes();
+            }
 
             if (CoreSettings.FpsCounter)
             {
@@ -781,11 +794,6 @@ public class ScreenCanvas
                 ImGui.GetWindowDrawList().AddText(new(ImGui.GetIO().DisplaySize.X - ImGui.CalcTextSize(fps).X - 5, ImGui.GetContentRegionAvail().Y - 25),
                     ImGui.GetColorU32(Vector4.One), fps);
             }
-
-            if (playMode)
-                DrawInputNotes();
-            else
-                DrawPlaybackNotes();
 
             string chord = Drawings.GetDetectedChord();
             if (!string.IsNullOrEmpty(chord))

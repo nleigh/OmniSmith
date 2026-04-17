@@ -21,7 +21,9 @@ public static class RocksmithParser
             throw new System.IO.FileNotFoundException($"Could not find arrangement XML at {xmlPath}. Please provide a raw _lead.xml for mocking.");
         }
 
-        return ParseXml(xmlPath);
+        var song = ParseXml(xmlPath);
+        song.CachedWavPath = psarcPath.Replace(".psarc", "_audio.wav");
+        return song;
     }
 
     public static OmniSmith.Core.Database.SongMeta GetMetadata(string psarcPath)

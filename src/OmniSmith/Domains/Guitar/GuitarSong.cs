@@ -201,8 +201,13 @@ public class GuitarSong : IPlayableSong
 
     public void Dispose()
     {
+        _waveOut?.Stop();
+
         _waveOut?.Dispose();
+        _waveOut = null;
+
         _audioFileReader?.Dispose();
+        _audioFileReader = null;
 
         if (!string.IsNullOrEmpty(CachedWavPath) && System.IO.File.Exists(CachedWavPath))
         {

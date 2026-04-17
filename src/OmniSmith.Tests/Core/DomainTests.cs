@@ -43,4 +43,32 @@ public class DomainTests
         // Assert
         mockSong.Verify(x => x.Dispose(), Times.Once);
     }
+
+    [Fact]
+    public void GuitarSong_InitAudio_ShouldNotThrow_WhenPathIsInvalid()
+    {
+        // Arrange
+        var song = new GuitarSong();
+        song.CachedWavPath = "C:\\invalid_audio_path_never_exists_123.wav";
+
+        // Act
+        var act = () => song.InitAudio();
+
+        // Assert
+        act.Should().NotThrow(); // Guard clause should simply return and not crash.
+    }
+
+    [Fact]
+    public void GuitarSong_InitAudio_ShouldNotThrow_WhenPathIsEmpty()
+    {
+        // Arrange
+        var song = new GuitarSong();
+        song.CachedWavPath = "";
+
+        // Act
+        var act = () => song.InitAudio();
+
+        // Assert
+        act.Should().NotThrow();
+    }
 }

@@ -21,32 +21,37 @@ public class WemDecoder
 
         await File.WriteAllBytesAsync(tempWemPath, wemData);
 
-        // Initialize a ProcessStartInfo to call "vgmstream-cli.exe"
-        var tcs = new TaskCompletionSource<bool>();
-        var process = new Process
+        try
         {
-            StartInfo = new ProcessStartInfo
+            using var process = new Process
             {
-                FileName = "vgmstream-cli",
-                Arguments = $"-o \"{tempWavPath}\" \"{tempWemPath}\"",
-                UseShellExecute = false,
-                CreateNoWindow = true
-            },
-            EnableRaisingEvents = true
-        };
+                StartInfo = new ProcessStartInfo
+                {
+                    FileName = "vgmstream-cli",
+                    Arguments = $"-o \"{tempWavPath}\" \"{tempWemPath}\"",
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                }
+            };
 
-        process.Exited += (sender, args) =>
+            process.Start();
+            await process.WaitForExitAsync();
+
+            if (process.ExitCode != 0 || !File.Exists(tempWavPath))
+            {
+                throw new InvalidOperationException($"Failed to decode audio. vgmstream-cli exited with code {process.ExitCode}.");
+            }
+        }
+        catch (System.ComponentModel.Win32Exception)
         {
-            tcs.SetResult(true);
-            process.Dispose();
-        };
-
-        process.Start();
-        await tcs.Task;
-
-        // Delete the temporary .wem file to save disk space
-        if (File.Exists(tempWemPath))
-            File.Delete(tempWemPath);
+            throw new System.ComponentModel.Win32Exception("The vgmstream-cli tool was not found. Please ensure it is installed and available in your system PATH.");
+        }
+        finally
+        {
+            // Delete the temporary .wem file to save disk space
+            if (File.Exists(tempWemPath))
+                File.Delete(tempWemPath);
+        }
 
         return tempWavPath;
     }

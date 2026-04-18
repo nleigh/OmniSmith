@@ -129,19 +129,21 @@ public class GuitarSong : IPlayableSong
     private const float Y_HORIZON_NORM = 0.08f; 
     
     // UI State
-    private float _displayMaxFret = 12f;
+    private float _fretWindowMin = 0f;
+    private float _fretWindowMax = 12f;
 
     private System.Diagnostics.Stopwatch _interpolationTimer = new();
     private double _lastAudioTimeMs;
 
     public void Draw(ImDrawListPtr drawList)
     {
-        var io = ImGui.GetIO();
-        float screenW = io.DisplaySize.X;
-        float screenH = io.DisplaySize.Y;
+        Vector2 P = ImGui.GetWindowPos();
+        float screenW = ImGui.GetWindowSize().X;
+        float screenH = ImGui.GetWindowSize().Y;
+        
+        Vector2 V(float x, float y) => new Vector2(P.X + x, P.Y + y);
 
         // HIGH-RESOLUTION INTERPOLATION
-        // Sync visual clock with audio clock
         double currentAudioTime = _audioFileReader?.CurrentTime.TotalMilliseconds ?? 0;
         bool isPlaying = _waveOut != null && _waveOut.PlaybackState == NAudio.Wave.PlaybackState.Playing;
 
@@ -165,19 +167,28 @@ public class GuitarSong : IPlayableSong
         }
         _currentAudioTimeMs = displayTime;
 
-        // Dynamic Zoom (Max Fret)
-        float maxActiveFret = 4f;
+        // Dynamic Panning (Min/Max active frets)
+        float minActiveFret = 24f;
+        float maxActiveFret = 0f;
         foreach (var note in Notes)
         {
             float tOff = (note.Time - _currentAudioTimeMs) / 1000f;
             if (tOff > -2.0f && tOff < VISIBLE_SECONDS)
             {
+                if (note.Fret > 0 && note.Fret < minActiveFret) minActiveFret = note.Fret;
                 if (note.Fret > maxActiveFret) maxActiveFret = note.Fret;
             }
         }
-        maxActiveFret = Math.Max(maxActiveFret + 2f, 8f);
-        _displayMaxFret += (maxActiveFret - _displayMaxFret) * (1f / 60f); // Smooth interpolation
+        
+        if (minActiveFret > maxActiveFret) minActiveFret = 1f;
 
+        float targetMin = Math.Max(1f, minActiveFret - 1.5f);
+        float targetMax = Math.Max(targetMin + 5f, maxActiveFret + 2f); // show at least 5 frets
+
+        // Smoothly interpolate camera
+        float dt = ImGui.GetIO().DeltaTime;
+        _fretWindowMin += (targetMin - _fretWindowMin) * Math.Min(1f, 4f * dt);
+        _fretWindowMax += (targetMax - _fretWindowMax) * Math.Min(1f, 4f * dt);
         // Rocksmith 2014 Standard Colors
         uint[] rsColors = { 
             0xFF0000FF, // E (Red)
@@ -213,16 +224,16 @@ public class GuitarSong : IPlayableSong
             uint bgColor = 0xFF000000 | ((uint)(fade + 14) << 16) | ((uint)fade << 8) | fade;
 
             drawList.AddQuadFilled(
-                new Vector2(screenW/2 - hw0, p0.ScreenY),
-                new Vector2(screenW/2 + hw0, p0.ScreenY),
-                new Vector2(screenW/2 + hw1, p1.ScreenY),
-                new Vector2(screenW/2 - hw1, p1.ScreenY),
+                V(screenW/2 - hw0, p0.ScreenY),
+                V(screenW/2 + hw0, p0.ScreenY),
+                V(screenW/2 + hw1, p1.ScreenY),
+                V(screenW/2 - hw1, p1.ScreenY),
                 bgColor
             );
         }
 
         // 2. Draw Fret Perspective Lines
-        for (int fret = 0; fret <= Math.Ceiling(_displayMaxFret); fret++)
+        for (int fret = (int)Math.Max(1, Math.Floor(_fretWindowMin)); fret <= (int)Math.Ceiling(_fretWindowMax); fret++)
         {
             Vector2[] points = new Vector2[41];
             for (int i = 0; i <= 40; i++)
@@ -230,7 +241,7 @@ public class GuitarSong : IPlayableSong
                 float t = (i / 40f) * VISIBLE_SECONDS;
                 var p = Project(t, screenW, screenH);
                 float x = FretX(fret, p.Scale, screenW);
-                points[i] = new Vector2(x, p.ScreenY);
+                points[i] = V(x, p.ScreenY);
             }
             // Add polyline
             for (int i=0; i<40; i++) 
@@ -248,8 +259,7 @@ public class GuitarSong : IPlayableSong
             if (p.Scale < 0.06f) continue;
             
             float hw = screenW * 0.26f * p.Scale;
-            // Simplified beat matching for now
-            drawList.AddLine(new Vector2(screenW/2 - hw, p.ScreenY), new Vector2(screenW/2 + hw, p.ScreenY), 0xFF503434, 2f);
+            drawList.AddLine(V(screenW/2 - hw, p.ScreenY), V(screenW/2 + hw, p.ScreenY), 0xFF503434, 2f);
         }
 
         // 4. Draw Horizontal Fretboard & Strings (Bottom)
@@ -258,29 +268,28 @@ public class GuitarSong : IPlayableSong
         float margin = screenW * 0.03f;
 
         // Fretboard wooden/dark background
-        drawList.AddRectFilled(new Vector2(margin - 10f, strTop - 10f), new Vector2(screenW - margin + 10f, strBot + 10f), 0xFF181515, 5f);
+        drawList.AddRectFilled(V(0f, strTop - 10f), V(screenW, strBot + 20f), 0xFF181515);
+        drawList.AddRectFilled(V(0f, strBot + 18f), V(screenW, screenH), 0xFF0D0C0C);
 
         for (int i = 0; i < 6; i++)
         {
             float y = strTop + (i / 5.0f) * (strBot - strTop);
-            drawList.AddLine(new Vector2(margin, y), new Vector2(screenW - margin, y), rsColors[i], 3f);
-            
-            // Core highlight to make strings pop
-            drawList.AddLine(new Vector2(margin, y), new Vector2(screenW - margin, y), 0x99FFFFFF, 1f);
+            drawList.AddLine(V(margin, y), V(screenW - margin, y), rsColors[i], 4f);
+            drawList.AddLine(V(margin, y), V(screenW - margin, y), 0x99FFFFFF, 2f);
         }
 
         // Fret dividers across strings
-        for (int fret = 0; fret <= Math.Ceiling(_displayMaxFret); fret++)
+        for (int fret = (int)Math.Max(1, Math.Floor(_fretWindowMin)); fret <= (int)Math.Ceiling(_fretWindowMax); fret++)
         {
             float x = FretX(fret, 1.0f, screenW);
-            drawList.AddLine(new Vector2(x, strTop - 10f), new Vector2(x, strBot + 10f), 0xFF666666, 3f);
-            drawList.AddLine(new Vector2(x-1, strTop - 10f), new Vector2(x-1, strBot + 10f), 0xFF999999, 1f); // Metallic highlight
+            drawList.AddLine(V(x, strTop - 10f), V(x, strBot + 10f), 0xFF666666, 3f);
+            drawList.AddLine(V(x-1, strTop - 10f), V(x-1, strBot + 10f), 0xFF999999, 1f); 
         }
 
         // 5. Draw Hitline / Now Line (Glow)
         float hitY = screenH * Y_HITLINE_NORM;
         float finalHw = screenW * 0.26f;
-        drawList.AddLine(new Vector2(screenW/2 - finalHw, hitY), new Vector2(screenW/2 + finalHw, hitY), 0xFFF0E0DC, 2f);
+        drawList.AddLine(V(screenW/2 - finalHw, hitY), V(screenW/2 + finalHw, hitY), 0xFFF0E0DC, 2f);
 
         // 6. Draw Notes & Sustains
         ImGui.PushFont(FontController.Font16_Icon16);
@@ -307,10 +316,10 @@ public class GuitarSong : IPlayableSong
                     float sw1 = Math.Max(2f, 6f * p1.Scale);
 
                     drawList.AddQuadFilled(
-                        new Vector2(x0 - sw0, p0.ScreenY),
-                        new Vector2(x0 + sw0, p0.ScreenY),
-                        new Vector2(x1 + sw1, p1.ScreenY),
-                        new Vector2(x1 - sw1, p1.ScreenY),
+                        V(x0 - sw0, p0.ScreenY),
+                        V(x0 + sw0, p0.ScreenY),
+                        V(x1 + sw1, p1.ScreenY),
+                        V(x1 - sw1, p1.ScreenY),
                         noteColor & 0x77FFFFFF
                     );
                 }
@@ -331,18 +340,18 @@ public class GuitarSong : IPlayableSong
                     {
                         float hw = screenW * 0.26f * proj.Scale;
                         float barH = Math.Max(6f, sz * 0.45f);
-                        drawList.AddRectFilled(new Vector2(screenW/2 - hw, y - barH/2), new Vector2(screenW/2 + hw, y + barH/2), noteColor, 2f);
+                        drawList.AddRectFilled(V(screenW/2 - hw, y - barH/2), V(screenW/2 + hw, y + barH/2), noteColor, 2f);
                         
                         if (proj.Scale > 0.35f) {
                             var tsz = ImGui.CalcTextSize("0");
-                            drawList.AddText(new Vector2(screenW/2 - tsz.X/2, y - tsz.Y/2), 0xFF000000, "0"); // Black text
+                            drawList.AddText(V(screenW/2 - tsz.X/2, y - tsz.Y/2), 0xFF000000, "0"); // Black text
                         }
                     }
                     else
                     {
                         // Standard Note
-                        drawList.AddRectFilled(new Vector2(x - half, y - half), new Vector2(x + half, y + half), noteColor, sz / 5f);
-                        drawList.AddRect(new Vector2(x - half, y - half), new Vector2(x + half, y + half), 0xFFFFFFFF, sz / 5f, ImDrawFlags.None, 1f);
+                        drawList.AddRectFilled(V(x - half, y - half), V(x + half, y + half), noteColor, sz / 5f);
+                        drawList.AddRect(V(x - half, y - half), V(x + half, y + half), 0xFFFFFFFF, sz / 5f, ImDrawFlags.None, 1f);
 
                         if (proj.Scale > 0.35f)
                         {
@@ -350,9 +359,9 @@ public class GuitarSong : IPlayableSong
                             var tSz = ImGui.CalcTextSize(txt);
                             
                             // Text shadow
-                            drawList.AddText(new Vector2(x - tSz.X/2 + 1, y - tSz.Y/2 + 1), 0x88000000, txt);
+                            drawList.AddText(V(x - tSz.X/2 + 1, y - tSz.Y/2 + 1), 0x88000000, txt);
                             // Solid Black text
-                            drawList.AddText(new Vector2(x - tSz.X/2, y - tSz.Y/2), 0xFF000000, txt);
+                            drawList.AddText(V(x - tSz.X/2, y - tSz.Y/2), 0xFF000000, txt);
 
                             // Technique Markers
                             string techIcon = "";
@@ -365,7 +374,7 @@ public class GuitarSong : IPlayableSong
                             {
                                 ImGui.PushFont(FontController.GetFontOfSize(14));
                                 var iconSz = ImGui.CalcTextSize(techIcon);
-                                drawList.AddText(new Vector2(x - iconSz.X/2, y - half - iconSz.Y - 2), 0xFFFFFFFF, techIcon);
+                                drawList.AddText(V(x - iconSz.X/2, y - half - iconSz.Y - 2), 0xFFFFFFFF, techIcon);
                                 ImGui.PopFont();
                             }
                         }
@@ -378,12 +387,12 @@ public class GuitarSong : IPlayableSong
         // 7. Fret Numbers (Bottom)
         ImGui.PushFont(FontController.GetFontOfSize(20));
         float fretY = screenH * 0.97f;
-        for (int fret = 0; fret <= Math.Ceiling(_displayMaxFret); fret++)
+        for (int fret = (int)Math.Max(1, Math.Floor(_fretWindowMin)); fret <= (int)Math.Ceiling(_fretWindowMax); fret++)
         {
             float x = FretX(fret, 1.0f, screenW);
             string fStr = fret.ToString();
             var fSz = ImGui.CalcTextSize(fStr);
-            drawList.AddText(new Vector2(x - fSz.X/2, fretY - fSz.Y/2), 0xFF30688A, fStr); // #8a6830 BGR
+            drawList.AddText(V(x - fSz.X/2, fretY - fSz.Y/2), 0xFF30688A, fStr); // #8a6830 BGR
         }
         ImGui.PopFont();
     }
@@ -393,7 +402,11 @@ public class GuitarSong : IPlayableSong
         float hw = w * 0.52f * scale;
         float margin = hw * 0.06f;
         float usable = hw * 2f - 2f * margin;
-        float t = fret / Math.Max(1f, _displayMaxFret);
+        
+        // Normalize against our dynamic sliding camera window!
+        float length = Math.Max(1f, _fretWindowMax - _fretWindowMin);
+        float t = (fret - _fretWindowMin) / length;
+        
         return w / 2f - hw + margin + t * usable;
     }
 

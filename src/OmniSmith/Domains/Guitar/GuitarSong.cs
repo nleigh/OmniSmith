@@ -122,11 +122,14 @@ public class GuitarSong : IPlayableSong
     }
 
     // SLOPSMITH PORT MATH
-    private const float VISIBLE_SECONDS = 8.0f; // Increased for 'Incoming Notes' visibility
-    private const float Z_CAM = 2.5f; 
+    private const float VISIBLE_SECONDS = 8.0f; 
+    private const float Z_CAM = 2.2f; 
     private const float Z_MAX = 10.0f;
-    private const float Y_HITLINE_NORM = 0.92f; 
-    private const float Y_HORIZON_NORM = 0.25f; 
+    private const float Y_HITLINE_NORM = 0.82f; 
+    private const float Y_HORIZON_NORM = 0.08f; 
+    
+    // UI State
+    private float _displayMaxFret = 12f;
 
     private System.Diagnostics.Stopwatch _interpolationTimer = new();
     private double _lastAudioTimeMs;
@@ -140,7 +143,6 @@ public class GuitarSong : IPlayableSong
         // HIGH-RESOLUTION INTERPOLATION
         // Sync visual clock with audio clock
         double currentAudioTime = _audioFileReader?.CurrentTime.TotalMilliseconds ?? 0;
-        
         bool isPlaying = _waveOut != null && _waveOut.PlaybackState == NAudio.Wave.PlaybackState.Playing;
 
         if (!isPlaying)
@@ -158,12 +160,23 @@ public class GuitarSong : IPlayableSong
         float displayTime = (float)currentAudioTime;
         if (isPlaying)
         {
-            // Clamp interpolation to 100ms to avoid runaway drift if UI hangs
             float interp = (float)_interpolationTimer.Elapsed.TotalMilliseconds;
             displayTime += Math.Min(100, interp); 
         }
-        
         _currentAudioTimeMs = displayTime;
+
+        // Dynamic Zoom (Max Fret)
+        float maxActiveFret = 4f;
+        foreach (var note in Notes)
+        {
+            float tOff = (note.Time - _currentAudioTimeMs) / 1000f;
+            if (tOff > -2.0f && tOff < VISIBLE_SECONDS)
+            {
+                if (note.Fret > maxActiveFret) maxActiveFret = note.Fret;
+            }
+        }
+        maxActiveFret = Math.Max(maxActiveFret + 2f, 8f);
+        _displayMaxFret += (maxActiveFret - _displayMaxFret) * (1f / 60f); // Smooth interpolation
 
         // Rocksmith 2014 Standard Colors
         uint[] rsColors = { 
@@ -174,22 +187,56 @@ public class GuitarSong : IPlayableSong
             0xFF00FF00, // B (Green)
             0xFFCC00FF  // e (Purple)
         };
+        uint[] rsDimColors = {
+            0xFF000052,
+            0xFF004252,
+            0xFF522900,
+            0xFF002952,
+            0xFF295200,
+            0xFF52003D
+        };
 
-        // 1. Draw Fretboard Shadow
-        var pFarLeft = Project(-1.05f, Z_MAX, screenW, screenH);
-        var pFarRight = Project(1.05f, Z_MAX, screenW, screenH);
-        var pNearLeft = Project(-1.05f, 0, screenW, screenH);
-        var pNearRight = Project(1.05f, 0, screenW, screenH);
-        drawList.AddQuadFilled(pFarLeft.ScreenPos, pFarRight.ScreenPos, pNearRight.ScreenPos, pNearLeft.ScreenPos, 0xAA080808);
-
-        // 2. Draw Vertical Frets (Metal dividers)
-        for (int i = 0; i <= 24; i++)
+        // 1. Draw Highway Background (Fades into distance)
+        for (int i = 0; i < 40; i++)
         {
-            float zFret = i * (Z_MAX / 8.0f); 
-            if (zFret > Z_MAX) break;
-            var fL = Project(-1.05f, zFret, screenW, screenH);
-            var fR = Project(1.05f, zFret, screenW, screenH);
-            drawList.AddLine(fL.ScreenPos, fR.ScreenPos, 0x66AAAAAA, 1f);
+            float t0 = (i / 40f) * VISIBLE_SECONDS;
+            float t1 = ((i + 1) / 40f) * VISIBLE_SECONDS;
+            var p0 = Project(t0, screenW, screenH);
+            var p1 = Project(t1, screenW, screenH);
+
+            if (p0.Scale < 0 || p1.Scale < 0) continue;
+
+            float hw0 = screenW * 0.26f * p0.Scale;
+            float hw1 = screenW * 0.26f * p1.Scale;
+
+            byte fade = (byte)(18 + 10 * p0.Scale);
+            uint bgColor = 0xFF000000 | ((uint)(fade + 14) << 16) | ((uint)fade << 8) | fade;
+
+            drawList.AddQuadFilled(
+                new Vector2(screenW/2 - hw0, p0.ScreenY),
+                new Vector2(screenW/2 + hw0, p0.ScreenY),
+                new Vector2(screenW/2 + hw1, p1.ScreenY),
+                new Vector2(screenW/2 - hw1, p1.ScreenY),
+                bgColor
+            );
+        }
+
+        // 2. Draw Fret Perspective Lines
+        for (int fret = 0; fret <= Math.Ceiling(_displayMaxFret); fret++)
+        {
+            Vector2[] points = new Vector2[41];
+            for (int i = 0; i <= 40; i++)
+            {
+                float t = (i / 40f) * VISIBLE_SECONDS;
+                var p = Project(t, screenW, screenH);
+                float x = FretX(fret, p.Scale, screenW);
+                points[i] = new Vector2(x, p.ScreenY);
+            }
+            // Add polyline
+            for (int i=0; i<40; i++) 
+            {
+                drawList.AddLine(points[i], points[i+1], 0xFF452D2D, 1f);
+            }
         }
 
         // 3. Draw Moving Beats
@@ -197,126 +244,152 @@ public class GuitarSong : IPlayableSong
         {
             float tOffset = (beat - _currentAudioTimeMs) / 1000f;
             if (tOffset < 0 || tOffset > VISIBLE_SECONDS) continue;
-
-            var bLeft = Project(-1.05f, tOffset * (Z_MAX / VISIBLE_SECONDS), screenW, screenH);
-            var bRight = Project(1.05f, tOffset * (Z_MAX / VISIBLE_SECONDS), screenW, screenH);
-            drawList.AddLine(bLeft.ScreenPos, bRight.ScreenPos, 0xAAFFFFFF, 2f * bLeft.Scale);
+            var p = Project(tOffset, screenW, screenH);
+            if (p.Scale < 0.06f) continue;
+            
+            float hw = screenW * 0.26f * p.Scale;
+            // Simplified beat matching for now
+            drawList.AddLine(new Vector2(screenW/2 - hw, p.ScreenY), new Vector2(screenW/2 + hw, p.ScreenY), 0xFF503434, 2f);
         }
 
-        // 4. Draw Strings (Glow)
+        // 4. Draw Horizontal Strings (Bottom)
+        float strTop = screenH * 0.83f;
+        float strBot = screenH * 0.95f;
+        float margin = screenW * 0.03f;
         for (int i = 0; i < 6; i++)
         {
-            float stringT = -1.0f + (i * (2.0f / 5.0f)); 
-            var sFar = Project(stringT, Z_MAX, screenW, screenH);
-            var sNear = Project(stringT, 0, screenW, screenH);
-            // Outer Glow
-            drawList.AddLine(sFar.ScreenPos, sNear.ScreenPos, rsColors[i] & 0x44FFFFFF, 6f);
-            // Core
-            drawList.AddLine(sFar.ScreenPos, sNear.ScreenPos, rsColors[i] | 0x88000000, 2f);
+            float y = strTop + (i / 5.0f) * (strBot - strTop);
+            drawList.AddLine(new Vector2(margin, y), new Vector2(screenW - margin, y), rsColors[i], 3f);
         }
 
-        // 5. Hitline Area
-        drawList.AddLine(pNearLeft.ScreenPos, pNearRight.ScreenPos, 0xFFFFFFFF, 4f);
+        // 5. Draw Hitline / Now Line (Glow)
+        float hitY = screenH * Y_HITLINE_NORM;
+        float finalHw = screenW * 0.26f;
+        drawList.AddLine(new Vector2(screenW/2 - finalHw, hitY), new Vector2(screenW/2 + finalHw, hitY), 0xFFF0E0DC, 2f);
 
-        // 6. Fretboard Numbers (Bottom Area)
-        ImGui.PushFont(FontController.GetFontOfSize(24));
-        int[] fretsToShow = { 0, 1, 3, 5, 7, 9, 12, 15, 17, 19, 21, 24 };
-        foreach (int f in fretsToShow)
-        {
-            float xPos = -1.0f + (f / 12.0f); 
-            var proj = Project(xPos, -0.1f, screenW, screenH);
-            string fStr = f.ToString();
-            var fSz = ImGui.CalcTextSize(fStr);
-            drawList.AddText(proj.ScreenPos + new Vector2(-fSz.X/2, 15), 0xDDFFCC00, fStr);
-        }
-        ImGui.PopFont();
-
-        // 7. Notes & Sustains (High-Visibility Gems)
+        // 6. Draw Notes & Sustains
         ImGui.PushFont(FontController.Font16_Icon16);
         foreach (var note in Notes)
         {
             float tStart = (note.Time - _currentAudioTimeMs) / 1000f;
             float tEnd = ((note.Time + note.Duration) - _currentAudioTimeMs) / 1000f;
 
-            if (tEnd < 0 || tStart > VISIBLE_SECONDS) continue;
-
-            float stringT = -1.0f + (note.String * (2.0f / 5.0f));
             uint noteColor = rsColors[note.String];
+            uint dimColor = rsDimColors[note.String];
 
             // Sustain Ribbon
-            if (note.Duration > 5)
+            if (note.Duration > 5 && tEnd >= 0 && tStart <= VISIBLE_SECONDS)
             {
-                var pS = Project(stringT, Math.Max(0, tStart) * (Z_MAX / VISIBLE_SECONDS), screenW, screenH);
-                var pE = Project(stringT, Math.Min(VISIBLE_SECONDS, tEnd) * (Z_MAX / VISIBLE_SECONDS), screenW, screenH);
-                float wS = (pNearRight.ScreenPos.X - pNearLeft.ScreenPos.X) * 0.08f * pS.Scale;
-                float wE = (pNearRight.ScreenPos.X - pNearLeft.ScreenPos.X) * 0.08f * pE.Scale;
+                float t0 = Math.Max(tStart, 0);
+                float t1 = Math.Min(tEnd, VISIBLE_SECONDS);
+                if (t0 < t1)
+                {
+                    var p0 = Project(t0, screenW, screenH);
+                    var p1 = Project(t1, screenW, screenH);
+                    float x0 = FretX(note.Fret, p0.Scale, screenW);
+                    float x1 = FretX(note.Fret, p1.Scale, screenW);
+                    float sw0 = Math.Max(2f, 6f * p0.Scale);
+                    float sw1 = Math.Max(2f, 6f * p1.Scale);
 
-                drawList.AddQuadFilled(
-                    new Vector2(pS.ScreenPos.X - wS/2, pS.ScreenPos.Y),
-                    new Vector2(pS.ScreenPos.X + wS/2, pS.ScreenPos.Y),
-                    new Vector2(pE.ScreenPos.X + wE/2, pE.ScreenPos.Y),
-                    new Vector2(pE.ScreenPos.X - wE/2, pE.ScreenPos.Y),
-                    noteColor & 0x44FFFFFF
-                );
+                    drawList.AddQuadFilled(
+                        new Vector2(x0 - sw0, p0.ScreenY),
+                        new Vector2(x0 + sw0, p0.ScreenY),
+                        new Vector2(x1 + sw1, p1.ScreenY),
+                        new Vector2(x1 - sw1, p1.ScreenY),
+                        noteColor & 0x77FFFFFF
+                    );
+                }
             }
 
             // Note Gem
-            if (tStart >= 0)
+            if (tStart >= -0.05f && tStart <= VISIBLE_SECONDS)
             {
-                var proj = Project(stringT, tStart * (Z_MAX / VISIBLE_SECONDS), screenW, screenH);
-                float bw = (pNearRight.ScreenPos.X - pNearLeft.ScreenPos.X) * 0.14f * proj.Scale;
-                float bh = 45f * proj.Scale;
-                
-                Vector2 tl = proj.ScreenPos - new Vector2(bw/2, bh/2);
-                Vector2 br = proj.ScreenPos + new Vector2(bw/2, bh/2);
-                
-                // Black Border
-                drawList.AddRectFilled(tl - new Vector2(2,2), br + new Vector2(2,2), 0xFF000000, 4f * proj.Scale);
-                
-                // Core Color
-                drawList.AddRectFilled(tl, br, noteColor, 4f * proj.Scale);
-                
-                // Top Highlight
-                drawList.AddRectFilled(tl, new Vector2(br.X, tl.Y + bh/3), 0x66FFFFFF, 4f * proj.Scale);
-
-                // Bright Outline
-                drawList.AddRect(tl, br, 0xFFFFFFFF, 4f * proj.Scale, ImDrawFlags.None, 1f);
-
-                if (proj.Scale > 0.35f)
+                var proj = Project(tStart, screenW, screenH);
+                if (proj.Scale > 0)
                 {
-                    string txt = note.Fret.ToString();
-                    var sz = ImGui.CalcTextSize(txt);
-                    drawList.AddText(proj.ScreenPos - (sz/2), 0xFF000000, txt);
+                    float x = FretX(note.Fret, proj.Scale, screenW);
+                    float y = proj.ScreenY;
+                    float sz = Math.Max(12f, 80f * proj.Scale * (screenH / 900f));
+                    float half = sz / 2f;
 
-                    // Technique Markers
-                    string techIcon = "";
-                    if (note.Techniques.HasFlag(NoteTechnique.HammerOn)) techIcon = "H";
-                    else if (note.Techniques.HasFlag(NoteTechnique.PullOff)) techIcon = "P";
-                    else if (note.Techniques.HasFlag(NoteTechnique.Slide)) techIcon = "S";
-                    else if (note.BendValue > 0) techIcon = "B";
-
-                    if (!string.IsNullOrEmpty(techIcon))
+                    if (note.Fret == 0) // Open string - draw horizontal bar
                     {
-                        ImGui.PushFont(FontController.GetFontOfSize(14));
-                        drawList.AddText(proj.ScreenPos + new Vector2(bw/2, -bh/2), 0xFFFFFFFF, techIcon);
-                        ImGui.PopFont();
+                        float hw = screenW * 0.26f * proj.Scale;
+                        float barH = Math.Max(6f, sz * 0.45f);
+                        drawList.AddRectFilled(new Vector2(screenW/2 - hw, y - barH/2), new Vector2(screenW/2 + hw, y + barH/2), noteColor, 2f);
+                        
+                        if (proj.Scale > 0.35f) {
+                            var tsz = ImGui.CalcTextSize("0");
+                            drawList.AddText(new Vector2(screenW/2 - tsz.X/2, y - tsz.Y/2), 0xFFFFFFFF, "0");
+                        }
+                    }
+                    else
+                    {
+                        // Standard Note
+                        drawList.AddRectFilled(new Vector2(x - half, y - half), new Vector2(x + half, y + half), noteColor, sz / 5f);
+                        drawList.AddRect(new Vector2(x - half, y - half), new Vector2(x + half, y + half), 0xFFFFFFFF, sz / 5f, ImDrawFlags.None, 1f);
+
+                        if (proj.Scale > 0.35f)
+                        {
+                            string txt = note.Fret.ToString();
+                            var tSz = ImGui.CalcTextSize(txt);
+                            drawList.AddText(new Vector2(x - tSz.X/2, y - tSz.Y/2), 0xFFFFFFFF, txt);
+
+                            // Technique Markers
+                            string techIcon = "";
+                            if (note.Techniques.HasFlag(NoteTechnique.HammerOn)) techIcon = "H";
+                            else if (note.Techniques.HasFlag(NoteTechnique.PullOff)) techIcon = "P";
+                            else if (note.Techniques.HasFlag(NoteTechnique.Slide)) techIcon = "S";
+                            else if (note.BendValue > 0) techIcon = "b"+note.BendValue;
+
+                            if (!string.IsNullOrEmpty(techIcon))
+                            {
+                                ImGui.PushFont(FontController.GetFontOfSize(14));
+                                var iconSz = ImGui.CalcTextSize(techIcon);
+                                drawList.AddText(new Vector2(x - iconSz.X/2, y - half - iconSz.Y - 2), 0xFFFFFFFF, techIcon);
+                                ImGui.PopFont();
+                            }
+                        }
                     }
                 }
             }
         }
         ImGui.PopFont();
+        
+        // 7. Fret Numbers (Bottom)
+        ImGui.PushFont(FontController.GetFontOfSize(20));
+        float fretY = screenH * 0.97f;
+        for (int fret = 0; fret <= Math.Ceiling(_displayMaxFret); fret++)
+        {
+            float x = FretX(fret, 1.0f, screenW);
+            string fStr = fret.ToString();
+            var fSz = ImGui.CalcTextSize(fStr);
+            drawList.AddText(new Vector2(x - fSz.X/2, fretY - fSz.Y/2), 0xFF30688A, fStr); // #8a6830 BGR
+        }
+        ImGui.PopFont();
     }
 
-    public (Vector2 ScreenPos, float Scale) Project(float tX, float z, float screenW, float screenH)
+    private float FretX(int fret, float scale, float w)
     {
-        // SLOPSMITH FORMULA
-        float scale = Z_CAM / (z + Z_CAM);
-        float y = screenH * (Y_HITLINE_NORM + (Y_HORIZON_NORM - Y_HITLINE_NORM) * (1.0f - scale));
-        
-        float hw = screenW * 0.52f * scale; // Width tapers with scale
-        float x = (screenW / 2.0f) + (tX * hw);
+        float hw = w * 0.52f * scale;
+        float margin = hw * 0.06f;
+        float usable = hw * 2f - 2f * margin;
+        float t = fret / Math.Max(1f, _displayMaxFret);
+        return w / 2f - hw + margin + t * usable;
+    }
 
-        return (new Vector2(x, y), scale);
+    public (float ScreenY, float Scale) Project(float tOffset, float screenW, float screenH)
+    {
+        if (tOffset > VISIBLE_SECONDS || tOffset < -0.05f) return (-1f, -1f);
+        if (tOffset < 0f) return (screenH * (Y_HITLINE_NORM + Math.Abs(tOffset) * 0.3f), 1.0f);
+
+        float z = tOffset * (Z_MAX / VISIBLE_SECONDS);
+        float denom = z + Z_CAM;
+        if (denom < 0.01f) return (-1f, -1f);
+        float scale = Z_CAM / denom;
+        float y = Y_HITLINE_NORM + (Y_HORIZON_NORM - Y_HITLINE_NORM) * (1.0f - scale);
+        
+        return (y * screenH, scale);
     }
 
     public void Dispose()

@@ -122,7 +122,7 @@ public class GuitarSong : IPlayableSong
     }
 
     // SLOPSMITH PORT MATH
-    private const float VISIBLE_SECONDS = 8.0f; 
+    private const float VISIBLE_SECONDS = 3.0f; // Slopsmith uses 3s for higher readability
     private const float Z_CAM = 2.2f; 
     private const float Z_MAX = 10.0f;
     private const float Y_HITLINE_NORM = 0.82f; 
@@ -143,29 +143,44 @@ public class GuitarSong : IPlayableSong
         
         Vector2 V(float x, float y) => new Vector2(P.X + x, P.Y + y);
 
-        // HIGH-RESOLUTION INTERPOLATION
-        double currentAudioTime = _audioFileReader?.CurrentTime.TotalMilliseconds ?? 0;
+        // 0. Audio Sync & High-Resolution Interpolation
         bool isPlaying = _waveOut != null && _waveOut.PlaybackState == NAudio.Wave.PlaybackState.Playing;
+        double audioTime = _audioFileReader?.CurrentTime.TotalMilliseconds ?? 0;
 
         if (!isPlaying)
         {
             _interpolationTimer.Stop();
             _interpolationTimer.Reset();
-            _lastAudioTimeMs = currentAudioTime;
+            _lastAudioTimeMs = audioTime;
         }
-        else if (currentAudioTime != _lastAudioTimeMs)
+        else
         {
-            _lastAudioTimeMs = currentAudioTime;
-            _interpolationTimer.Restart();
+            // If the audio clock has advanced, anchor our high-res timer to it
+            if (Math.Abs(audioTime - _lastAudioTimeMs) > 0.001)
+            {
+                _lastAudioTimeMs = audioTime;
+                _interpolationTimer.Restart();
+            }
         }
 
-        float displayTime = (float)currentAudioTime;
-        if (isPlaying)
+        // Calculate smoothed display time
+        float interpolationOffset = isPlaying ? (float)_interpolationTimer.Elapsed.TotalMilliseconds : 0;
+        // Cap interpolation at 100ms to prevent runaway if the audio engine hangs/buffers
+        float interpolatedAudioTime = (float)_lastAudioTimeMs + Math.Min(100f, interpolationOffset);
+
+        // Convert the shared visual Timer (master seek clock) back to raw milliseconds
+        float currentTargetMs = (MidiPlayer.Timer / (100f * ScreenCanvasControls.FallSpeedVal)) * 1000f;
+
+        // SEEK HANDLING: If the User seeks via UI, the target will jump far ahead/behind
+        if (Math.Abs(currentTargetMs - interpolatedAudioTime) > 150)
         {
-            float interp = (float)_interpolationTimer.Elapsed.TotalMilliseconds;
-            displayTime += Math.Min(100, interp); 
+            if (_audioFileReader != null) _audioFileReader.CurrentTime = TimeSpan.FromMilliseconds(currentTargetMs);
+            _lastAudioTimeMs = currentTargetMs;
+            _interpolationTimer.Restart();
+            interpolatedAudioTime = currentTargetMs;
         }
-        _currentAudioTimeMs = displayTime;
+
+        _currentAudioTimeMs = interpolatedAudioTime;
 
         // Dynamic Panning (Min/Max active frets)
         float minActiveFret = 24f;
@@ -173,7 +188,7 @@ public class GuitarSong : IPlayableSong
         foreach (var note in Notes)
         {
             float tOff = (note.Time - _currentAudioTimeMs) / 1000f;
-            if (tOff > -2.0f && tOff < VISIBLE_SECONDS)
+            if (tOff > -1.0f && tOff < VISIBLE_SECONDS + 1.0f)
             {
                 if (note.Fret > 0 && note.Fret < minActiveFret) minActiveFret = note.Fret;
                 if (note.Fret > maxActiveFret) maxActiveFret = note.Fret;
@@ -235,18 +250,19 @@ public class GuitarSong : IPlayableSong
         // 2. Draw Fret Perspective Lines
         for (int fret = (int)Math.Max(1, Math.Floor(_fretWindowMin)); fret <= (int)Math.Ceiling(_fretWindowMax); fret++)
         {
-            Vector2[] points = new Vector2[41];
-            for (int i = 0; i <= 40; i++)
+            Vector2[] points = new Vector2[21]; // Simplified for performance
+            for (int i = 0; i <= 20; i++)
             {
-                float t = (i / 40f) * VISIBLE_SECONDS;
+                float t = (i / 20f) * VISIBLE_SECONDS;
                 var p = Project(t, screenW, screenH);
                 float x = FretX(fret, p.Scale, screenW);
                 points[i] = V(x, p.ScreenY);
             }
             // Add polyline
-            for (int i=0; i<40; i++) 
+            for (int i=0; i<20; i++) 
             {
-                drawList.AddLine(points[i], points[i+1], 0xFF452D2D, 1f);
+                // Slopsmith Fret Color: #2d2d45
+                drawList.AddLine(points[i], points[i+1], 0xFF452D2D, 1.5f);
             }
         }
 
@@ -281,9 +297,17 @@ public class GuitarSong : IPlayableSong
             drawList.AddLine(V(0, y), V(screenW, y), rsColors[i], 3f);
         }
 
-        // 5. Draw Hitline / Now Line (Glow)
+        // 5. Draw Hitline / Now Line (Enhanced Glow)
         float finalHw = screenW * 0.26f;
-        drawList.AddLine(V(screenW/2 - finalHw, hitY), V(screenW/2 + finalHw, hitY), 0xFFF0E0DC, 3f);
+        // Hitline multi-pass glow
+        for (int g = 0; g < 4; g++)
+        {
+            float goff = g * 1.5f;
+            uint gcolor = 0x44F0E0DC; // Semi-transparent glow
+            drawList.AddLine(V(screenW/2 - finalHw, hitY - goff), V(screenW/2 + finalHw, hitY - goff), gcolor, 1f);
+            drawList.AddLine(V(screenW/2 - finalHw, hitY + goff), V(screenW/2 + finalHw, hitY + goff), gcolor, 1f);
+        }
+        drawList.AddLine(V(screenW/2 - finalHw, hitY), V(screenW/2 + finalHw, hitY), 0xFFFFFFFF, 3f);
 
         // 6. Draw Notes & Sustains
         ImGui.PushFont(FontController.Font16_Icon16);
@@ -343,7 +367,10 @@ public class GuitarSong : IPlayableSong
                     }
                     else
                     {
-                        // Standard Note
+                        // Standard Note with Slopsmith Shadow
+                        float shadSz = sz + 4f;
+                        drawList.AddRectFilled(V(x - shadSz/2, y - shadSz/2), V(x + shadSz/2, y + shadSz/2), 0xAA000000, sz / 5f);
+                        
                         drawList.AddRectFilled(V(x - half, y - half), V(x + half, y + half), noteColor, sz / 5f);
                         drawList.AddRect(V(x - half, y - half), V(x + half, y + half), 0xFFFFFFFF, sz / 5f, ImDrawFlags.None, 1f);
 
@@ -352,10 +379,9 @@ public class GuitarSong : IPlayableSong
                             string txt = note.Fret.ToString();
                             var tSz = ImGui.CalcTextSize(txt);
                             
-                            // Text shadow
+                            // Bold White text for contrast (Faithful Slopsmith)
                             drawList.AddText(V(x - tSz.X/2 + 1, y - tSz.Y/2 + 1), 0x88000000, txt);
-                            // Solid Black text
-                            drawList.AddText(V(x - tSz.X/2, y - tSz.Y/2), 0xFF000000, txt);
+                            drawList.AddText(V(x - tSz.X/2, y - tSz.Y/2), 0xFFFFFFFF, txt);
 
                             // Technique Markers
                             string techIcon = "";

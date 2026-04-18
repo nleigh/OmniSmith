@@ -18,9 +18,9 @@ public static class SongProgressBar
 
         var drawList = ImGui.GetForegroundDrawList();
         float barHeight = 25f;
-        Vector2 viewportPos = ImGui.GetMainViewport().Pos;
-        float barWidth = ImGui.GetMainViewport().Size.X - 40;
-        Vector2 pos = viewportPos + new Vector2(20, 40); // Top area
+        Vector2 windowPos = ImGui.GetWindowPos();
+        float barWidth = ImGui.GetWindowSize().X - 40;
+        Vector2 pos = windowPos + new Vector2(20, 10); // Offset within window
 
         // Background
         Vector2 pMin = pos;

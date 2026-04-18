@@ -24,8 +24,19 @@ public class PlayModeWindow : ImGuiWindow
         {
             ScreenCanvas.RenderCanvas(true);
             
+            // Header: Back button
+            ImGui.SetCursorPos(new Vector2(10, 10));
+            ImGui.PushFont(FontController.Font16_Icon16);
+            if (ImGui.Button($"{IconFonts.FontAwesome6.ArrowLeftLong} Back", new Vector2(100, 35)) || ImGui.IsKeyPressed(ImGuiKey.Escape))
+            {
+                MidiPlayer.StopTimer();
+                if (MidiPlayer.Playback != null) MidiPlayer.Playback.Stop();
+                WindowsManager.SetWindow(Enums.Windows.MidiBrowser);
+            }
+            ImGui.PopFont();
+
             // Render the Phrase/Progress bar at the top of the highway
-            float totalMs = (float)Application.CurrentSong?.TotalDuration.TotalMilliseconds;
+            float totalMs = (float)(Application.CurrentSong?.TotalDuration.TotalMilliseconds ?? 0);
             OmniSmith.Ui.Helpers.SongProgressBar.Render(Application.CurrentSong, MidiPlayer.Timer, totalMs);
 
             ImGui.EndChild();

@@ -117,14 +117,14 @@ public class SettingsWindow : ImGuiWindow
 
         ImGui.Dummy(new(50));
 
-        // MIDI PATHS
-        ImGui.Text($"MIDI PATHS {FontAwesome6.FolderOpen}");
+        // SONG PATHS
+        ImGui.Text($"SONG PATHS {FontAwesome6.FolderOpen}");
         ImGui.Spacing();
 
-        ImGui.BeginTable("Midi paths scan", 3, ImGuiTableFlags.PadOuterX | ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg);
+        ImGui.BeginTable("Song paths scan", 3, ImGuiTableFlags.PadOuterX | ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg);
         ImGui.TableSetupColumn("Path");
-        ImGui.TableSetupColumn("N° of midi", ImGuiTableColumnFlags.WidthFixed, 100);
-        ImGui.TableSetupColumn("##delete midi path", ImGuiTableColumnFlags.WidthFixed, 50);
+        ImGui.TableSetupColumn("Songs", ImGuiTableColumnFlags.WidthFixed, 100);
+        ImGui.TableSetupColumn("##delete song path", ImGuiTableColumnFlags.WidthFixed, 50);
         ImGui.TableHeadersRow();
 
         int index = 0;
@@ -135,21 +135,23 @@ public class SettingsWindow : ImGuiWindow
 
             ImGui.Text(path);
 
-            int nMidis = 0;
-            foreach (var midiFile in Directory.GetFiles(path))
+            int nFiles = 0;
+            foreach (var songFile in MidiPathsManager.SafeEnumerateFiles(path))
             {
-                if (Path.GetExtension(midiFile) == ".mid")
+                var ext = Path.GetExtension(songFile);
+                if (ext.Equals(".mid", StringComparison.OrdinalIgnoreCase) ||
+                    ext.Equals(".psarc", StringComparison.OrdinalIgnoreCase))
                 {
-                    nMidis++;
+                    nFiles++;
                 }
             }
             ImGui.TableSetColumnIndex(1);
-            ImGui.Text(nMidis.ToString());
+            ImGui.Text(nFiles.ToString());
             ImGui.TableSetColumnIndex(2);
             ImGuiTheme.Style.Colors[(int)ImGuiCol.Text] = new Vector4(1, 0, 0.2f, 1);
             ImGui.PushFont(FontController.Font16_Icon12);
             ImGui.PushID(index.ToString());
-            if (ImGui.SmallButton($"{FontAwesome6.CircleXmark}##remove_midi_path"))
+            if (ImGui.SmallButton($"{FontAwesome6.CircleXmark}##remove_song_path"))
             {
                 MidiPaths.Remove(path);
             }

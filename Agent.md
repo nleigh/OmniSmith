@@ -16,6 +16,8 @@ You are working autonomously, step by step, picking up tasks from `Project/agent
 * **No "Omni" God-Classes:** Keep domain logic isolated (Piano vs Guitar). Use the `IPlayableSong` interface for the main loop.
 * **NAudio for Desktop Playback:** We utilize **NAudio** (`NAudio.Wave.AudioFileReader` and `WaveOutEvent`) for local playback on `GuitarSong` domains. NEVER use `ManagedBass` or obsolete audio tools.
 * **ImGui Native Rendering:** Utilize `ImGui.NET` for the 3D highway rendering via math-based perspective projection in C#.
+* **Master Clock Standard:** ALL guitar highway timing must be calculated in **Milliseconds**. Sync the `MidiPlayer.Timer` directly to the `NAudio` position during playback to ensure visual frame-alignment.
+* **High-Fidelity Aesthetic:** Future rendering (Note detection, scoring) must match the 'Slopsmith' visual standard: Rounded note blocks, string-specific colors, and wide FOV perspective.
 * **Zero Stub Policy:** NEVER output `throw new NotImplementedException();` or leave `TODO` stubs. Implement functions from start to finish securely, including valid error throwing logic when interacting with external binaries.
 
 ## 🚨 Common Mistakes to Avoid (From Code Reviews)

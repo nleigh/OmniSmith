@@ -36,17 +36,48 @@ namespace OmniSmith.Core.Database
     {
         public static LibraryDatabase Instance { get; set; } = null!;
         private readonly string _connectionString;
+        private readonly SqliteConnection _sharedConnection;
+        private SqliteCommand _putCommand = null!;
 
         public LibraryDatabase()
         {
             string dbPath = Path.Combine(KnownFolders.RoamingAppData.Path, "OmniSmith", "Library.db");
+            if (!Directory.Exists(Path.GetDirectoryName(dbPath)))
+                Directory.CreateDirectory(Path.GetDirectoryName(dbPath)!);
+
             _connectionString = new SqliteConnectionStringBuilder
             {
                 DataSource = dbPath,
-                DefaultTimeout = 5
+                DefaultTimeout = 10
             }.ToString();
 
             InitializeDatabase();
+
+            // Open a long-lived connection for efficiency
+            _sharedConnection = new SqliteConnection(_connectionString);
+            _sharedConnection.Open();
+            PrepareCommands();
+        }
+
+        private void PrepareCommands()
+        {
+            _putCommand = _sharedConnection.CreateCommand();
+            _putCommand.CommandText = @"
+                INSERT OR REPLACE INTO songs 
+                (filename, mtime, size, title, artist, album, year, duration, tuning, arrangements, has_lyrics)
+                VALUES ($filename, $mtime, $size, $title, $artist, $album, $year, $duration, $tuning, $arrangements, $hasLyrics);";
+
+            _putCommand.Parameters.Add("$filename", SqliteType.Text);
+            _putCommand.Parameters.Add("$mtime", SqliteType.Real);
+            _putCommand.Parameters.Add("$size", SqliteType.Integer);
+            _putCommand.Parameters.Add("$title", SqliteType.Text);
+            _putCommand.Parameters.Add("$artist", SqliteType.Text);
+            _putCommand.Parameters.Add("$album", SqliteType.Text);
+            _putCommand.Parameters.Add("$year", SqliteType.Text);
+            _putCommand.Parameters.Add("$duration", SqliteType.Real);
+            _putCommand.Parameters.Add("$tuning", SqliteType.Text);
+            _putCommand.Parameters.Add("$arrangements", SqliteType.Text);
+            _putCommand.Parameters.Add("$hasLyrics", SqliteType.Integer);
         }
 
         private void InitializeDatabase()
@@ -78,28 +109,22 @@ namespace OmniSmith.Core.Database
 
         public void Put(string filename, double mtime, long size, SongMeta meta)
         {
-            using var connection = new SqliteConnection(_connectionString);
-            connection.Open();
+            lock (_putCommand)
+            {
+                _putCommand.Parameters["$filename"].Value = filename;
+                _putCommand.Parameters["$mtime"].Value = mtime;
+                _putCommand.Parameters["$size"].Value = size;
+                _putCommand.Parameters["$title"].Value = meta.Title ?? (object)DBNull.Value;
+                _putCommand.Parameters["$artist"].Value = meta.Artist ?? (object)DBNull.Value;
+                _putCommand.Parameters["$album"].Value = meta.Album ?? (object)DBNull.Value;
+                _putCommand.Parameters["$year"].Value = meta.Year ?? (object)DBNull.Value;
+                _putCommand.Parameters["$duration"].Value = meta.Duration;
+                _putCommand.Parameters["$tuning"].Value = meta.Tuning ?? (object)DBNull.Value;
+                _putCommand.Parameters["$arrangements"].Value = meta.Arrangements ?? (object)DBNull.Value;
+                _putCommand.Parameters["$hasLyrics"].Value = meta.HasLyrics ? 1 : 0;
 
-            var command = connection.CreateCommand();
-            command.CommandText = @"
-                INSERT OR REPLACE INTO songs 
-                (filename, mtime, size, title, artist, album, year, duration, tuning, arrangements, has_lyrics)
-                VALUES ($filename, $mtime, $size, $title, $artist, $album, $year, $duration, $tuning, $arrangements, $hasLyrics);";
-
-            command.Parameters.AddWithValue("$filename", filename);
-            command.Parameters.AddWithValue("$mtime", mtime);
-            command.Parameters.AddWithValue("$size", size);
-            command.Parameters.AddWithValue("$title", meta.Title);
-            command.Parameters.AddWithValue("$artist", meta.Artist);
-            command.Parameters.AddWithValue("$album", meta.Album);
-            command.Parameters.AddWithValue("$year", meta.Year);
-            command.Parameters.AddWithValue("$duration", meta.Duration);
-            command.Parameters.AddWithValue("$tuning", meta.Tuning);
-            command.Parameters.AddWithValue("$arrangements", meta.Arrangements);
-            command.Parameters.AddWithValue("$hasLyrics", meta.HasLyrics ? 1 : 0);
-
-            command.ExecuteNonQuery();
+                _putCommand.ExecuteNonQuery();
+            }
         }
 
         public (double Mtime, long Size)? GetMtimeSize(string filename)
@@ -119,7 +144,7 @@ namespace OmniSmith.Core.Database
             return null;
         }
 
-        public List<SongEntry> QueryPage(string query, int page, int size, string sortColumn, string direction)
+        public List<SongEntry> QueryPage(string query, int page, int size, string sortColumn, string direction, string extensionFilter = "")
         {
             var results = new List<SongEntry>();
             int offset = page * size;
@@ -137,15 +162,27 @@ namespace OmniSmith.Core.Database
             connection.Open();
 
             var command = connection.CreateCommand();
+            string limitClause = size >= 0 ? "LIMIT $limit OFFSET $offset" : "";
+            
+            string filterSql = "(filename LIKE $query OR title LIKE $query OR artist LIKE $query OR album LIKE $query)";
+            if (!string.IsNullOrEmpty(extensionFilter))
+            {
+                filterSql += " AND filename LIKE $ext";
+                command.Parameters.AddWithValue("$ext", $"%{extensionFilter}");
+            }
+
             command.CommandText = $@"
                 SELECT * FROM songs 
-                WHERE filename LIKE $query OR title LIKE $query OR artist LIKE $query OR album LIKE $query
+                WHERE {filterSql}
                 ORDER BY {sortColumn} {dir}
-                LIMIT $limit OFFSET $offset;";
+                {limitClause};";
 
             command.Parameters.AddWithValue("$query", $"%{query}%");
-            command.Parameters.AddWithValue("$limit", size);
-            command.Parameters.AddWithValue("$offset", offset);
+            if (size >= 0)
+            {
+                command.Parameters.AddWithValue("$limit", size);
+                command.Parameters.AddWithValue("$offset", offset);
+            }
 
             using var reader = command.ExecuteReader();
             while (reader.Read())

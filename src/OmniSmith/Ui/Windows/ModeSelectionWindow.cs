@@ -34,7 +34,57 @@ public class ModeSelectionWindow : ImGuiWindow
             if (CoreSettings.AnimatedBackground)
                 Drawings.RenderMatrixBackground();
 
-            RenderTitle(MidiFileData.FileName.Replace(".mid", string.Empty), 50 * FontController.DSF);
+            string titleText = !string.IsNullOrEmpty(MidiFileData.FileName) 
+                ? MidiFileData.FileName.Replace(".mid", string.Empty) 
+                : (Application.CurrentSong?.Title ?? "No song loaded");
+
+            RenderTitle(titleText, 50 * FontController.DSF);
+
+            RenderTitle(titleText, 50 * FontController.DSF);
+
+            // ARRANGEMENT SELECTOR for GuitarSongs - NEW POSITION
+            if (Application.CurrentSong is OmniSmith.Domains.Guitar.GuitarSong guitarSong && guitarSong.AvailableArrangements.Count > 0)
+            {
+                float centerX = ImGui.GetContentRegionAvail().X / 2f;
+                float comboWidth = 450 * FontController.DSF;
+                
+                ImGui.SetCursorPos(new Vector2(centerX - comboWidth / 2f, 160 * FontController.DSF));
+                
+                // Label
+                ImGui.PushFont(FontController.GetFontOfSize(18));
+                ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1f), $"{FontAwesome6.Gears} Select Arrangement:");
+                ImGui.PopFont();
+                
+                ImGui.SetNextItemWidth(comboWidth);
+                string currentArr = guitarSong.ArrangementXml ?? "Default";
+                
+                // Clean up the name for display (e.g. songs/arr/lead.xml -> Lead)
+                string displayArr = Path.GetFileNameWithoutExtension(currentArr).ToUpper();
+
+                ImGui.PushStyleColor(ImGuiCol.FrameBg, new Vector4(1, 1, 1, 0.1f));
+                if (ImGui.BeginCombo("##Arrangement", displayArr, ImGuiComboFlags.HeightLarge))
+                {
+                    foreach (var arr in guitarSong.AvailableArrangements)
+                    {
+                        bool isSelected = (arr == currentArr);
+                        string entryLabel = Path.GetFileNameWithoutExtension(arr).ToUpper();
+                        
+                        if (ImGui.Selectable(entryLabel, isSelected))
+                        {
+                            try {
+                                var reloaded = OmniSmith.Domains.Guitar.Services.RocksmithParser.ParsePsarc(guitarSong.PsarcPath, arr);
+                                reloaded.CachedWavPath = guitarSong.CachedWavPath; // Keep the same audio
+                                Application.CurrentSong = reloaded;
+                            } catch (Exception ex) {
+                                Logger.Error($"Failed to switch arrangement: {ex.Message}");
+                            }
+                        }
+                    }
+                    ImGui.EndCombo();
+                }
+                ImGui.PopStyleColor();
+                if (ImGui.IsItemHovered()) ImGui.SetTooltip("Choose Lead, Rhythm, or Bass");
+            }
 
             RenderIconWithText(FontAwesome6.Music, "Peacefully listen and visualize the piece", 0.1f, 2.5f);
             RenderIconWithText(FontAwesome6.Gamepad, "Playback will wait for the right note input", 0.36f, 2.5f);
@@ -111,53 +161,72 @@ public class ModeSelectionWindow : ImGuiWindow
         ScreenCanvasControls.SetLearningMode(learningMode);
         ScreenCanvasControls.SetEditMode(editMode);
         
-        LeftRightData.S_IsRightNote.Clear();
-        foreach (var note in MidiFileData.Notes)
+        // Skip MIDI-specific logic for GuitarSongs
+        if (Application.CurrentSong is OmniSmith.Domains.Guitar.GuitarSong)
         {
-            LeftRightData.S_IsRightNote.Add(true);
+            WindowsManager.SetWindow(Enums.Windows.PlayMode);
+            return;
+        }
+
+        LeftRightData.S_IsRightNote.Clear();
+        if (MidiFileData.Notes != null)
+        {
+            foreach (var note in MidiFileData.Notes)
+            {
+                LeftRightData.S_IsRightNote.Add(true);
+            }
         }
         MidiEditing.ReadData();
 
         // Note index map for visual highlight lookup
         LeftRightData.S_NoteIndexMap = new Dictionary<string, List<int>>();
-        foreach (var (note, i) in MidiFileData.Notes.Select((note, i) => (note, i)))
+        if (MidiFileData.Notes != null)
         {
-            var key = $"{note.NoteNumber}_{note.Time}";
-            if (!LeftRightData.S_NoteIndexMap.TryGetValue(key, out var indexList))
+            foreach (var (note, i) in MidiFileData.Notes.Select((note, i) => (note, i)))
             {
-                indexList = new List<int>();
-                LeftRightData.S_NoteIndexMap[key] = indexList;
+                var key = $"{note.NoteNumber}_{note.Time}";
+                if (!LeftRightData.S_NoteIndexMap.TryGetValue(key, out var indexList))
+                {
+                    indexList = new List<int>();
+                    LeftRightData.S_NoteIndexMap[key] = indexList;
+                }
+                indexList.Add(i);
             }
-            indexList.Add(i);
         }
 
         // Mapping logic for hand muting in IOHandle
         LeftRightData.S_EventHandMap.Clear();
-        var allNotes = MidiFileData.Notes.ToList();
-        
-        var noteOnHandMap = new Dictionary<(int noteNumber, long time), bool>();
-        var noteOffHandMap = new Dictionary<(int noteNumber, long time), bool>();
-        
-        for (int j = 0; j < allNotes.Count; j++)
+        if (MidiFileData.Notes != null && MidiFileData.MidiFile != null)
         {
-            var n = allNotes[j];
-            bool isRight = (j < LeftRightData.S_IsRightNote.Count) ? LeftRightData.S_IsRightNote[j] : true;
-            noteOnHandMap[(n.NoteNumber, n.Time)] = isRight;
-            noteOffHandMap[(n.NoteNumber, n.Time + n.Length)] = isRight;
-        }
-
-        // Map the actual MidiEvent instances to hands
-        foreach (var timedEvent in MidiFileData.MidiFile.GetTimedEvents())
-        {
-            if (timedEvent.Event is NoteOnEvent noteOn)
+            var allNotes = MidiFileData.Notes.ToList();
+            
+            var noteOnHandMap = new Dictionary<(int noteNumber, long time), bool>();
+            var noteOffHandMap = new Dictionary<(int noteNumber, long time), bool>();
+            
+            for (int j = 0; j < allNotes.Count; j++)
             {
-                if (noteOnHandMap.TryGetValue((noteOn.NoteNumber, timedEvent.Time), out bool isRight))
-                    LeftRightData.S_EventHandMap[noteOn] = isRight;
+                var n = allNotes[j];
+                bool isRight = (j < LeftRightData.S_IsRightNote.Count) ? LeftRightData.S_IsRightNote[j] : true;
+                noteOnHandMap[(n.NoteNumber, n.Time)] = isRight;
+                noteOffHandMap[(n.NoteNumber, n.Time + n.Length)] = isRight;
             }
-            else if (timedEvent.Event is NoteOffEvent noteOff)
+
+            // Map the actual MidiEvent instances to hands
+            if (MidiFileData.MidiFile != null)
             {
-                if (noteOffHandMap.TryGetValue((noteOff.NoteNumber, timedEvent.Time), out bool isRight))
-                    LeftRightData.S_EventHandMap[noteOff] = isRight;
+                foreach (var timedEvent in MidiFileData.MidiFile.GetTimedEvents())
+                {
+                    if (timedEvent.Event is NoteOnEvent noteOn)
+                    {
+                        if (noteOnHandMap.TryGetValue((noteOn.NoteNumber, timedEvent.Time), out bool isRight))
+                            LeftRightData.S_EventHandMap[noteOn] = isRight;
+                    }
+                    else if (timedEvent.Event is NoteOffEvent noteOff)
+                    {
+                        if (noteOffHandMap.TryGetValue((noteOff.NoteNumber, timedEvent.Time), out bool isRight))
+                            LeftRightData.S_EventHandMap[noteOff] = isRight;
+                    }
+                }
             }
         }
 

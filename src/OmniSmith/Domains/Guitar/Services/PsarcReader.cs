@@ -1,49 +1,96 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
-using System.Security.Cryptography;
-using System.Text;
+using System.Linq;
+using Rocksmith2014.PSARC;
+using OmniSmith.Core;
 
 namespace OmniSmith.Domains.Guitar.Services;
 
 public class PsarcReader
 {
-    // Rocksmith 2014 Exact Cryptographic Constants
-    private static readonly byte[] ARC_KEY = Convert.FromHexString("C53DB23870A1A2F71CAE64061FDD0E1157309DC85204D4C5BFDF25090DF2572C");
-    private static readonly byte[] ARC_IV = Convert.FromHexString("E915AA018FEF71FC508132E4BB4CEB42");
-
-    public static byte[] DecryptTOC(byte[] encryptedData)
+    /// <summary>
+    /// Reads a PSARC file and returns all contained entries as filename → byte[] pairs.
+    /// Uses the robust Rocksmith2014.PSARC library for extraction.
+    /// </summary>
+    public static Dictionary<string, byte[]> ExtractAll(string filePath)
     {
-        // Python equivalent: AES.new(ARC_KEY, AES.MODE_CFB, iv=ARC_IV, segment_size=128)
-        using var aes = Aes.Create();
-        aes.Key = ARC_KEY;
-        aes.IV = ARC_IV;
-        aes.Mode = CipherMode.CFB;
-        aes.FeedbackSize = 128;
-        aes.Padding = PaddingMode.None;
+        Logger.Info($"PSARC: Extracting all entries from '{filePath}' using Rocksmith2014.PSARC");
+        var result = new Dictionary<string, byte[]>();
 
-        using var decryptor = aes.CreateDecryptor();
-        using var ms = new MemoryStream(encryptedData);
-        using var cs = new CryptoStream(ms, decryptor, CryptoStreamMode.Read);
-        
-        using var output = new MemoryStream();
-        cs.CopyTo(output);
-        return output.ToArray();
+        try
+        {
+            using var psarc = PSARC.OpenFile(filePath);
+            foreach (var name in psarc.Manifest)
+            {
+                try
+                {
+                    // Rocksmith2014.PSARC returns a Task<MemoryStream> for GetEntryStream
+                    using var stream = psarc.GetEntryStream(name).Result;
+                    result[name] = stream.ToArray();
+                }
+                catch (Exception ex)
+                {
+                    Logger.Error($"PSARC: Failed to extract '{name}'", ex);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.Error($"PSARC: Failed to open archive '{filePath}'", ex);
+        }
+
+        return result;
     }
 
     /// <summary>
-    /// Reads a PSARC file, decrypts the header/TOC, and decompresses 
-    /// the requested file paths to memory.
+    /// Extracts specific entries matching a predicate, avoiding full decompression.
     /// </summary>
-    public static void ParsePsarc(string filePath)
+    public static Dictionary<string, byte[]> ExtractByFilter(string filePath, Func<string, bool> filter)
     {
-        using var fs = File.OpenRead(filePath);
-        using var br = new BinaryReader(fs);
+        var result = new Dictionary<string, byte[]>();
 
-        // TODO for Local Agent (Ticket 2.2):
-        // 1. Read MAGIC bytes ("PSAR")
-        // 2. Read PSARC header (Version, TOC Length, Entry size, etc)
-        // 3. Extract the TOC block bytes, and pass to DecryptTOC()
-        // 4. Parse the unencrypted TOC struct to locate Uncompressed Size and Block Offsets.
-        // 5. Utilize System.IO.Compression.ZLibStream (or equivalent zlib deflater) to extract blocks.
+        try
+        {
+            using var psarc = PSARC.OpenFile(filePath);
+            foreach (var name in psarc.Manifest)
+            {
+                if (!filter(name)) continue;
+
+                try
+                {
+                    using var stream = psarc.GetEntryStream(name).Result;
+                    result[name] = stream.ToArray();
+                }
+                catch (Exception ex)
+                {
+                    Logger.Error($"PSARC: Failed to extract filter match '{name}'", ex);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.Error($"PSARC: Failed to open archive for filter '{filePath}'", ex);
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Returns the list of filenames contained in the PSARC without extracting any data.
+    /// </summary>
+    public static string[] ListEntries(string filePath)
+    {
+        try
+        {
+            using var psarc = PSARC.OpenFile(filePath);
+            // .Manifest is an F# list (string list), convert to array
+            return psarc.Manifest.ToArray();
+        }
+        catch (Exception ex)
+        {
+            Logger.Error($"PSARC: Failed to list entries for '{filePath}'", ex);
+            return System.Array.Empty<string>();
+        }
     }
 }

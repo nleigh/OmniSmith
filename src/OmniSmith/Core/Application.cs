@@ -48,6 +48,17 @@ public class Application
 
     public void OnUpdate()
     {
+        // Update master clock if a GuitarSong is playing
+        if (Application.CurrentSong is OmniSmith.Domains.Guitar.GuitarSong guitar && MidiPlayer.IsTimerRunning)
+        {
+            float audioPos = guitar.CurrentAudioPositionMs;
+            MidiPlayer.Timer = audioPos;
+            MidiPlayer.Seconds = audioPos / 1000f;
+        }
+
+        // Update active song logic (audio sync, highway time, etc)
+        Application.CurrentSong?.Update(MidiPlayer.Timer);
+
         if (MidiPlayer.ShouldAdvanceQueue)
         {
             MidiPlayer.ShouldAdvanceQueue = false;

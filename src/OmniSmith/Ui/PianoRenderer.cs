@@ -26,6 +26,8 @@ public class PianoRenderer
 
     public static void RenderKeyboard()
     {
+        if (Application.CurrentSong is OmniSmith.Domains.Guitar.GuitarSong) return;
+
         ImGui.PushFont(FontController.GetFontOfSize((int)(18 * FontController.DSF)));
         ImDrawListPtr draw_list = ImGui.GetWindowDrawList();
         P = ImGui.GetCursorScreenPos();

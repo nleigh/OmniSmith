@@ -1,6 +1,10 @@
 using ImGuiNET;
 using OmniSmith.Core;
+using OmniSmith.Core.Interfaces;
+using OmniSmith.Core.Models;
+using OmniSmith.Core.Midi;
 using OmniSmith.Settings;
+using System;
 using System.Numerics;
 
 namespace OmniSmith.Ui.Windows;
@@ -19,6 +23,11 @@ public class PlayModeWindow : ImGuiWindow
         if (ImGui.BeginChild("Screen", canvasSize))
         {
             ScreenCanvas.RenderCanvas(true);
+            
+            // Render the Phrase/Progress bar at the top of the highway
+            float totalMs = (float)Application.CurrentSong?.TotalDuration.TotalMilliseconds;
+            OmniSmith.Ui.Helpers.SongProgressBar.Render(Application.CurrentSong, MidiPlayer.Timer, totalMs);
+
             ImGui.EndChild();
         }
 

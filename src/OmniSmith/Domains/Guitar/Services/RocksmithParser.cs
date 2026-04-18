@@ -104,7 +104,7 @@ public static class RocksmithParser
             .FirstOrDefault();
     }
 
-    public static GuitarSong ParsePsarc(string psarcPath)
+    public static GuitarSong ParsePsarc(string psarcPath, string? targetXml = null)
     {
         Logger.Info($"RocksmithParser: Starting parse of '{psarcPath}'");
 
@@ -112,12 +112,12 @@ public static class RocksmithParser
             name.EndsWith(".xml", StringComparison.OrdinalIgnoreCase) || 
             name.EndsWith(".wem", StringComparison.OrdinalIgnoreCase));
 
-        var xmlEntryName = FindArrangementXml(entries.Keys);
+        var xmlEntryName = targetXml ?? FindArrangementXml(entries.Keys);
 
-        if (xmlEntryName == null)
+        if (xmlEntryName == null || !entries.ContainsKey(xmlEntryName))
         {
-            Logger.Error($"RocksmithParser: No arrangement XML found inside {psarcPath}");
-            throw new FileNotFoundException($"No arrangement XML found inside {psarcPath}");
+            Logger.Error($"RocksmithParser: Arrangement XML '{targetXml}' not found inside {psarcPath}");
+            throw new FileNotFoundException($"Arrangement XML not found inside {psarcPath}");
         }
 
         Logger.Info($"RocksmithParser: Selecting arrangement XML: {xmlEntryName}");
@@ -126,6 +126,13 @@ public static class RocksmithParser
         using var xmlStream = new MemoryStream(entries[xmlEntryName]);
         var arrangement = ParseXml(xmlStream);
         GuitarSong song = MapArrangementToSong(arrangement);
+        song.PsarcPath = psarcPath;
+        song.ArrangementXml = xmlEntryName;
+        song.AvailableArrangements = entries.Keys
+            .Where(k => k.EndsWith(".xml", StringComparison.OrdinalIgnoreCase) 
+                   && !k.Contains("showlight", StringComparison.OrdinalIgnoreCase)
+                   && !k.Contains("tone", StringComparison.OrdinalIgnoreCase))
+            .ToList();
 
         // Find the WEM audio file and decode it
         var wemEntry = entries.Keys.FirstOrDefault(k => k.EndsWith(".wem", StringComparison.OrdinalIgnoreCase));
@@ -205,10 +212,10 @@ public static class RocksmithParser
         {
             song.Notes.Add(new GuitarNote
             {
-                Time = n.Time / 1000.0f,
+                Time = n.Time,
                 String = (int)n.String,
                 Fret = (int)n.Fret,
-                Duration = n.Sustain / 1000.0f,
+                Duration = n.Sustain,
                 Techniques = MapTechniques(n),
                 BendValue = n.MaxBend,
                 SlideTo = n.SlideTo
@@ -225,10 +232,10 @@ public static class RocksmithParser
                 {
                     chordNotes.Add(new GuitarNote
                     {
-                        Time = cn.Time / 1000.0f,
+                        Time = cn.Time,
                         String = (int)cn.String,
                         Fret = (int)cn.Fret,
-                        Duration = cn.Sustain / 1000.0f,
+                        Duration = cn.Sustain,
                         Techniques = MapTechniques(cn)
                     });
                 }
@@ -236,7 +243,7 @@ public static class RocksmithParser
 
             song.Chords.Add(new GuitarChord
             {
-                Time = c.Time / 1000.0f,
+                Time = c.Time,
                 ChordId = c.ChordId,
                 ChordNotes = chordNotes,
                 Name = arrangement.ChordTemplates[c.ChordId].Name
@@ -244,8 +251,8 @@ public static class RocksmithParser
         }
 
         // Map Anchors and Beats
-        song.Anchors = level.Anchors.Select(a => a.Time / 1000.0f).ToList();
-        song.Beats = arrangement.Ebeats.Select(b => b.Time / 1000.0f).ToList();
+        song.Anchors = level.Anchors.Select(a => (float)a.Time).ToList();
+        song.Beats = arrangement.Ebeats.Select(b => (float)b.Time).ToList();
 
         return song;
     }

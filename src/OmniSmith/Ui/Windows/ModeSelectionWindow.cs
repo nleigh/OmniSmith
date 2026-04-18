@@ -40,6 +40,52 @@ public class ModeSelectionWindow : ImGuiWindow
 
             RenderTitle(titleText, 50 * FontController.DSF);
 
+            RenderTitle(titleText, 50 * FontController.DSF);
+
+            // ARRANGEMENT SELECTOR for GuitarSongs - NEW POSITION
+            if (Application.CurrentSong is OmniSmith.Domains.Guitar.GuitarSong guitarSong && guitarSong.AvailableArrangements.Count > 0)
+            {
+                float centerX = ImGui.GetContentRegionAvail().X / 2f;
+                float comboWidth = 450 * FontController.DSF;
+                
+                ImGui.SetCursorPos(new Vector2(centerX - comboWidth / 2f, 160 * FontController.DSF));
+                
+                // Label
+                ImGui.PushFont(FontController.GetFontOfSize(18));
+                ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1f), $"{FontAwesome6.Gears} Select Arrangement:");
+                ImGui.PopFont();
+                
+                ImGui.SetNextItemWidth(comboWidth);
+                string currentArr = guitarSong.ArrangementXml ?? "Default";
+                
+                // Clean up the name for display (e.g. songs/arr/lead.xml -> Lead)
+                string displayArr = Path.GetFileNameWithoutExtension(currentArr).ToUpper();
+
+                ImGui.PushStyleColor(ImGuiCol.FrameBg, new Vector4(1, 1, 1, 0.1f));
+                if (ImGui.BeginCombo("##Arrangement", displayArr, ImGuiComboFlags.HeightLarge))
+                {
+                    foreach (var arr in guitarSong.AvailableArrangements)
+                    {
+                        bool isSelected = (arr == currentArr);
+                        string entryLabel = Path.GetFileNameWithoutExtension(arr).ToUpper();
+                        
+                        if (ImGui.Selectable(entryLabel, isSelected))
+                        {
+                            try {
+                                var reloaded = OmniSmith.Domains.Guitar.Services.RocksmithParser.ParsePsarc(guitarSong.PsarcPath, arr);
+                                reloaded.CachedWavPath = guitarSong.CachedWavPath; // Keep the same audio
+                                Application.CurrentSong = reloaded;
+                            } catch (Exception ex) {
+                                Logger.Error($"Failed to switch arrangement: {ex.Message}");
+                            }
+                        }
+                    }
+                    ImGui.EndCombo();
+                }
+                ImGui.PopStyleColor();
+                if (ImGui.IsItemHovered()) ImGui.SetTooltip("Choose Lead, Rhythm, or Bass");
+            }
+
             RenderIconWithText(FontAwesome6.Music, "Peacefully listen and visualize the piece", 0.1f, 2.5f);
             RenderIconWithText(FontAwesome6.Gamepad, "Playback will wait for the right note input", 0.36f, 2.5f);
             RenderIconWithText(FontAwesome6.Hands, "Separate right and left hands with colors", 0.625f, 2.5f);

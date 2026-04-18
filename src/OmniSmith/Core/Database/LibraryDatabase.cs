@@ -144,7 +144,7 @@ namespace OmniSmith.Core.Database
             return null;
         }
 
-        public List<SongEntry> QueryPage(string query, int page, int size, string sortColumn, string direction)
+        public List<SongEntry> QueryPage(string query, int page, int size, string sortColumn, string direction, string extensionFilter = "")
         {
             var results = new List<SongEntry>();
             int offset = page * size;
@@ -163,9 +163,17 @@ namespace OmniSmith.Core.Database
 
             var command = connection.CreateCommand();
             string limitClause = size >= 0 ? "LIMIT $limit OFFSET $offset" : "";
+            
+            string filterSql = "(filename LIKE $query OR title LIKE $query OR artist LIKE $query OR album LIKE $query)";
+            if (!string.IsNullOrEmpty(extensionFilter))
+            {
+                filterSql += " AND filename LIKE $ext";
+                command.Parameters.AddWithValue("$ext", $"%{extensionFilter}");
+            }
+
             command.CommandText = $@"
                 SELECT * FROM songs 
-                WHERE filename LIKE $query OR title LIKE $query OR artist LIKE $query OR album LIKE $query
+                WHERE {filterSql}
                 ORDER BY {sortColumn} {dir}
                 {limitClause};";
 

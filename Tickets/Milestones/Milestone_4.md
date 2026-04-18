@@ -1,4 +1,4 @@
-# Milestone 4: Integration & Domain Routing
+# [COMPLETED] Milestone 4: Integration & Domain Routing
 
 ## Overview
 With both the Piano and Guitar domains fully functional in isolation, the final milestone bridges the runtime gap. We must allow the user to drag and drop both `.mid` and `.psarc` files into the `OmniSmith` UI and seamlessly route them to the correct Domain parser on the fly.

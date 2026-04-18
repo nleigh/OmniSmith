@@ -32,6 +32,10 @@ public class MidiBrowserWindow : ImGuiWindow
     private float _hoverTime = 0f;
     private bool _isLoading = false;
     private string _loadingError = string.Empty;
+    
+    public enum SongFilter { All, Guitar, Midi }
+    private SongFilter _currentFilter = SongFilter.All;
+    private SongFilter _lastFilter = SongFilter.All;
 
     public MidiBrowserWindow()
     {
@@ -68,6 +72,11 @@ public class MidiBrowserWindow : ImGuiWindow
                 var song = await SongFactory.LoadSongAsync(file);
                 Application.CurrentSong?.Dispose();
                 Application.CurrentSong = song;
+
+                if (song is OmniSmith.Domains.Guitar.GuitarSong guitarSong)
+                {
+                    guitarSong.InitAudio();
+                }
                 
                 // Only navigate if loading succeeded
                 WindowsManager.SetWindow(Enums.Windows.ModeSelection);
@@ -115,12 +124,21 @@ public class MidiBrowserWindow : ImGuiWindow
             }
 
             ImGui.SameLine();
-            ImGui.SetNextItemWidth(ImGui.GetContentRegionAvail().X - 50); // Leave space for trailing label if any
-            
+            ImGui.SetNextItemWidth(ImGuiUtils.FixedSize(new Vector2(300)).X);
             string oldSearch = _searchBuffer;
             ImGui.InputTextWithHint("##search_input", $"Search {FontAwesome6.MagnifyingGlass}...", ref _searchBuffer, 1000);
             if (oldSearch != _searchBuffer) _currentPage = 0;
-            
+
+            ImGui.SameLine();
+            ImGui.SetNextItemWidth(ImGuiUtils.FixedSize(new Vector2(250)).X);
+            string[] items = { "All Instruments", $"{FontAwesome6.Guitar} Guitar Only", $"{FontAwesome6.Music} MIDI Only" };
+            int currentItem = (int)_currentFilter;
+            if (ImGui.Combo("##filter_combo", ref currentItem, items, items.Length))
+            {
+                _currentFilter = (SongFilter)currentItem;
+            }
+            if (ImGui.IsItemHovered()) ImGui.SetTooltip("Filter Library");
+
             ImGui.EndChild();
         }
     }
@@ -291,9 +309,15 @@ public class MidiBrowserWindow : ImGuiWindow
                             int currentScannerCount = ProgramData.Scanner?.TotalSongsFound ?? 0;
                             if (_lastSearch != _searchBuffer || _lastSortCol != _sortColumnIndex || 
                                 _lastSortDir != _sortDirection || _lastFavOnly != _favoritesOnly ||
-                                _lastScannerCount != currentScannerCount)
+                                _lastScannerCount != currentScannerCount || _lastFilter != _currentFilter)
                             {
-                                var rawSongs = OmniSmith.Core.Database.LibraryDatabase.Instance.QueryPage(_searchBuffer, 0, -1, sortCol, dir);
+                                string extFilter = _currentFilter switch {
+                                    SongFilter.Guitar => ".psarc",
+                                    SongFilter.Midi => ".mid",
+                                    _ => ""
+                                };
+
+                                var rawSongs = OmniSmith.Core.Database.LibraryDatabase.Instance.QueryPage(_searchBuffer, 0, -1, sortCol, dir, extFilter);
                                 
                                 // Filter by favorites if toggled
                                 if (_favoritesOnly)
@@ -309,6 +333,7 @@ public class MidiBrowserWindow : ImGuiWindow
                                 _lastSortCol = _sortColumnIndex;
                                 _lastSortDir = _sortDirection;
                                 _lastFavOnly = _favoritesOnly;
+                                _lastFilter = _currentFilter;
                                 _lastScannerCount = currentScannerCount;
                             }
 

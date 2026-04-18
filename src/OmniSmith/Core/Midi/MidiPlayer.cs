@@ -54,11 +54,13 @@ public static class MidiPlayer
 
     public static void StopTimer()
     {
+        Logger.Info("MidiPlayer: StopTimer called");
         IsTimerRunning = false;
     }
 
     public static void StartTimer()
     {
+        Logger.Info("MidiPlayer: StartTimer called");
         IsTimerRunning = true;
     }
 

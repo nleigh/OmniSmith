@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using OmniSmith.Core.Models;
 using Melanchall.DryWetMidi.Core;
 using Melanchall.DryWetMidi.Interaction;
 using Melanchall.DryWetMidi.Multimedia;
@@ -16,6 +17,7 @@ public class PianoSong : IPlayableSong
     public string Title { get; set; }
     public string Artist { get; set; } = "Unknown Artist";
     public TimeSpan TotalDuration { get; set; }
+    public List<SongSection> Sections { get; } = new();
 
     public Melanchall.DryWetMidi.Core.MidiFile SongFile { get; private set; }
     public List<Note> Notes { get; private set; }

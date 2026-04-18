@@ -262,34 +262,28 @@ public class GuitarSong : IPlayableSong
             drawList.AddLine(V(screenW/2 - hw, p.ScreenY), V(screenW/2 + hw, p.ScreenY), 0xFF503434, 2f);
         }
 
-        // 4. Draw Horizontal Fretboard & Strings (Bottom)
-        float strTop = screenH * 0.83f;
-        float strBot = screenH * 0.95f;
-        float margin = screenW * 0.03f;
+        // 4. Draw Horizontal Strings (Bottom)
+        float hitY = screenH * Y_HITLINE_NORM;
+        float strTop = screenH * 0.86f;
+        float strBot = screenH * 0.94f;
 
-        // Fretboard wooden/dark background
-        drawList.AddRectFilled(V(0f, strTop - 10f), V(screenW, strBot + 20f), 0xFF181515);
-        drawList.AddRectFilled(V(0f, strBot + 18f), V(screenW, screenH), 0xFF0D0C0C);
-
-        for (int i = 0; i < 6; i++)
-        {
-            float y = strTop + (i / 5.0f) * (strBot - strTop);
-            drawList.AddLine(V(margin, y), V(screenW - margin, y), rsColors[i], 4f);
-            drawList.AddLine(V(margin, y), V(screenW - margin, y), 0x99FFFFFF, 2f);
-        }
-
-        // Fret dividers across strings
+        // Fret dividers across strings extending down from the hitline
         for (int fret = (int)Math.Max(1, Math.Floor(_fretWindowMin)); fret <= (int)Math.Ceiling(_fretWindowMax); fret++)
         {
             float x = FretX(fret, 1.0f, screenW);
-            drawList.AddLine(V(x, strTop - 10f), V(x, strBot + 10f), 0xFF666666, 3f);
-            drawList.AddLine(V(x-1, strTop - 10f), V(x-1, strBot + 10f), 0xFF999999, 1f); 
+            drawList.AddLine(V(x, hitY), V(x, screenH), 0xFF444444, 2f);
+        }
+
+        // Draw the 6 horizontal colored strings
+        for (int i = 0; i < 6; i++)
+        {
+            float y = strTop + (i / 5.0f) * (strBot - strTop);
+            drawList.AddLine(V(0, y), V(screenW, y), rsColors[i], 3f);
         }
 
         // 5. Draw Hitline / Now Line (Glow)
-        float hitY = screenH * Y_HITLINE_NORM;
         float finalHw = screenW * 0.26f;
-        drawList.AddLine(V(screenW/2 - finalHw, hitY), V(screenW/2 + finalHw, hitY), 0xFFF0E0DC, 2f);
+        drawList.AddLine(V(screenW/2 - finalHw, hitY), V(screenW/2 + finalHw, hitY), 0xFFF0E0DC, 3f);
 
         // 6. Draw Notes & Sustains
         ImGui.PushFont(FontController.Font16_Icon16);
@@ -385,14 +379,14 @@ public class GuitarSong : IPlayableSong
         ImGui.PopFont();
         
         // 7. Fret Numbers (Bottom)
-        ImGui.PushFont(FontController.GetFontOfSize(20));
-        float fretY = screenH * 0.97f;
+        ImGui.PushFont(FontController.GetFontOfSize(16));
+        float fretY = screenH * 0.98f;
         for (int fret = (int)Math.Max(1, Math.Floor(_fretWindowMin)); fret <= (int)Math.Ceiling(_fretWindowMax); fret++)
         {
             float x = FretX(fret, 1.0f, screenW);
             string fStr = fret.ToString();
             var fSz = ImGui.CalcTextSize(fStr);
-            drawList.AddText(V(x - fSz.X/2, fretY - fSz.Y/2), 0xFF30688A, fStr); // #8a6830 BGR
+            drawList.AddText(V(x - fSz.X/2, fretY - fSz.Y/2), 0xFFAAAAAA, fStr);
         }
         ImGui.PopFont();
     }

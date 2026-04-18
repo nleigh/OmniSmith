@@ -59,15 +59,20 @@ public static class SongProgressBar
         float playheadX = Math.Clamp((currentMs / totalMs) * barWidth, 0, barWidth);
         drawList.AddLine(new Vector2(pos.X + playheadX, pos.Y - 5), new Vector2(pos.X + playheadX, pos.Y + barHeight + 5), 0xFF00FF00, 3f);
 
-        // Interaction (Click to Seek)
-        if (ImGui.IsMouseClicked(ImGuiMouseButton.Left))
+        // Interaction (Click and Drag to Seek) using ImGui idiomatic way
+        ImGui.SetCursorScreenPos(pMin);
+        ImGui.InvisibleButton("##SongProgressSeek", new Vector2(barWidth, barHeight));
+        
+        if (ImGui.IsItemActive())
         {
             Vector2 mousePos = ImGui.GetMousePos();
-            if (mousePos.X >= pMin.X && mousePos.X <= pMax.X && mousePos.Y >= pMin.Y && mousePos.Y <= pMax.Y)
+            float pct = Math.Clamp((mousePos.X - pMin.X) / barWidth, 0f, 1f);
+            float seekTime = pct * totalMs;
+            MidiPlayer.Timer = seekTime;
+            
+            // Only log sparingly if dragging
+            if (ImGui.IsMouseClicked(ImGuiMouseButton.Left))
             {
-                float pct = (mousePos.X - pMin.X) / barWidth;
-                float seekTime = pct * totalMs;
-                MidiPlayer.Timer = seekTime;
                 OmniSmith.Core.Logger.Info($"ProgressBar: Seeking to {seekTime:F0}ms ({pct*100:F1}%)");
             }
         }

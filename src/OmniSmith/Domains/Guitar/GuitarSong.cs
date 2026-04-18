@@ -252,14 +252,29 @@ public class GuitarSong : IPlayableSong
             drawList.AddLine(new Vector2(screenW/2 - hw, p.ScreenY), new Vector2(screenW/2 + hw, p.ScreenY), 0xFF503434, 2f);
         }
 
-        // 4. Draw Horizontal Strings (Bottom)
+        // 4. Draw Horizontal Fretboard & Strings (Bottom)
         float strTop = screenH * 0.83f;
         float strBot = screenH * 0.95f;
         float margin = screenW * 0.03f;
+
+        // Fretboard wooden/dark background
+        drawList.AddRectFilled(new Vector2(margin - 10f, strTop - 10f), new Vector2(screenW - margin + 10f, strBot + 10f), 0xFF181515, 5f);
+
         for (int i = 0; i < 6; i++)
         {
             float y = strTop + (i / 5.0f) * (strBot - strTop);
             drawList.AddLine(new Vector2(margin, y), new Vector2(screenW - margin, y), rsColors[i], 3f);
+            
+            // Core highlight to make strings pop
+            drawList.AddLine(new Vector2(margin, y), new Vector2(screenW - margin, y), 0x99FFFFFF, 1f);
+        }
+
+        // Fret dividers across strings
+        for (int fret = 0; fret <= Math.Ceiling(_displayMaxFret); fret++)
+        {
+            float x = FretX(fret, 1.0f, screenW);
+            drawList.AddLine(new Vector2(x, strTop - 10f), new Vector2(x, strBot + 10f), 0xFF666666, 3f);
+            drawList.AddLine(new Vector2(x-1, strTop - 10f), new Vector2(x-1, strBot + 10f), 0xFF999999, 1f); // Metallic highlight
         }
 
         // 5. Draw Hitline / Now Line (Glow)
@@ -320,7 +335,7 @@ public class GuitarSong : IPlayableSong
                         
                         if (proj.Scale > 0.35f) {
                             var tsz = ImGui.CalcTextSize("0");
-                            drawList.AddText(new Vector2(screenW/2 - tsz.X/2, y - tsz.Y/2), 0xFFFFFFFF, "0");
+                            drawList.AddText(new Vector2(screenW/2 - tsz.X/2, y - tsz.Y/2), 0xFF000000, "0"); // Black text
                         }
                     }
                     else
@@ -333,7 +348,11 @@ public class GuitarSong : IPlayableSong
                         {
                             string txt = note.Fret.ToString();
                             var tSz = ImGui.CalcTextSize(txt);
-                            drawList.AddText(new Vector2(x - tSz.X/2, y - tSz.Y/2), 0xFFFFFFFF, txt);
+                            
+                            // Text shadow
+                            drawList.AddText(new Vector2(x - tSz.X/2 + 1, y - tSz.Y/2 + 1), 0x88000000, txt);
+                            // Solid Black text
+                            drawList.AddText(new Vector2(x - tSz.X/2, y - tSz.Y/2), 0xFF000000, txt);
 
                             // Technique Markers
                             string techIcon = "";
